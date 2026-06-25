@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+=======
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved. 
+>>>>>>> release-3.2.2-0625-b79d137
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,16 +26,25 @@
 
 #ifndef ADD_AUTO_SCHEDULING_COMMON_UTILS_H
 #define ADD_AUTO_SCHEDULING_COMMON_UTILS_H
+<<<<<<< HEAD
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/StringRef.h"
 #include <string_view>
+=======
+#include <string_view>
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Operation.h"
+#include "mlir/IR/Value.h"
+#include "llvm/ADT/StringRef.h"
+>>>>>>> release-3.2.2-0625-b79d137
 
 namespace mlir {
 namespace CVPipeline {
 
 inline constexpr llvm::StringLiteral kCoreType = "ssbuffer.core_type";
 inline constexpr llvm::StringLiteral kBlockId = "ssbuffer.block_id";
+<<<<<<< HEAD
 
 enum CoreType {
   UNDETERMINED = 0,
@@ -49,13 +62,67 @@ inline constexpr CoreType fromStrCoreType(std::string_view s) {
   }
 
   return CoreType::UNDETERMINED;
+=======
+inline constexpr llvm::StringLiteral kTransferId = "ssbuffer.transfer_id";
+inline constexpr llvm::StringLiteral kMatmulADep = "ssbuffer.adep";
+inline constexpr llvm::StringLiteral kMatmulBDep = "ssbuffer.bdep";
+inline constexpr llvm::StringLiteral kMatmulExtract = "ssbuffer.matmul_extract";
+inline constexpr llvm::StringLiteral kCubeFirst = "ssbuffer.cube_first";
+inline constexpr llvm::StringLiteral kVectorFirst = "ssbuffer.vector_first";
+inline constexpr llvm::StringLiteral kAddFromMatmul = "ssbuffer.add_from_matmul";
+inline constexpr llvm::StringLiteral kMainLoop = "ssbuffer.main_loop";
+inline constexpr llvm::StringLiteral kTcoreType = "hivm.tcore_type";
+inline constexpr llvm::StringLiteral kIf = "ssbuffer.if";
+inline constexpr llvm::StringLiteral kIntraBuffer = "ssbuffer.intra_buffer";
+inline constexpr llvm::StringLiteral kAnalyzeFlagId = "ssbuffer.analyze_flag_id";
+inline constexpr llvm::StringLiteral kLoopCarriedL0C = "ssbuffer.loop_carried_l0c";
+inline constexpr llvm::StringLiteral kCrossDeps = "ssbuffer.crossDeps";
+inline constexpr llvm::StringLiteral kMayNotExec = "ssbuffer.may_not_exec";
+inline constexpr llvm::StringLiteral kClone = "ssbuffer.clone";
+inline constexpr const char *ERRCODE_ATTR = "triton_ascend.dynamic_cv_pipeline.rc";
+static constexpr const int ERRCODE_FAILED = 1;
+static constexpr const int ERRCODE_IGNORED = 2;
+
+enum CoreType {
+    UNDETERMINED = 0,
+    VECTOR_ONLY = 1 << 0,
+    CUBE_ONLY = 1 << 1,
+    CUBE_AND_VECTOR = VECTOR_ONLY | CUBE_ONLY,
+};
+
+inline constexpr CoreType fromStrCoreType(std::string_view s)
+{
+    if (s == "VECTOR") {
+        return CoreType::VECTOR_ONLY;
+    }
+    if (s == "CUBE") {
+        return CoreType::CUBE_ONLY;
+    }
+
+    return CoreType::UNDETERMINED;
+>>>>>>> release-3.2.2-0625-b79d137
 }
 
 // Functions for managing core types
 CoreType getOpCoreType(Operation *op);
+<<<<<<< HEAD
 
 llvm::LogicalResult verifyOpBlockId(Operation *op);
 std::optional<int64_t> getOpBlockId(Operation *op);
+=======
+std::optional<int64_t> getOpBlockId(Operation *op);
+llvm::LogicalResult verifyOpBlockId(Operation *op);
+int getAvailableBlockId(ModuleOp module);
+void setFallbackAttr(ModuleOp module);
+bool isScfOp(Operation *op);
+
+inline bool isCubeOp(Operation *op)
+{
+    return !isScfOp(op) && CVPipeline::getOpCoreType(op) == CoreType::CUBE_ONLY;
+}
+
+bool isVectorOnlyOp(Operation *op);
+>>>>>>> release-3.2.2-0625-b79d137
 
 } // namespace CVPipeline
 } // namespace mlir

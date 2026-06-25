@@ -29,6 +29,7 @@
 namespace mlir {
 namespace triton {
 
+<<<<<<< HEAD
 class SplitDataflowPass
     : public PassWrapper<SplitDataflowPass, OperationPass<ModuleOp>> {
 public:
@@ -39,6 +40,17 @@ public:
 
   // Run the pass
   void runOnOperation() override;
+=======
+class SplitDataflowPass : public PassWrapper<SplitDataflowPass, OperationPass<ModuleOp>> {
+public:
+    MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SplitDataflowPass)
+
+    // Constructor
+    SplitDataflowPass() = default;
+
+    // Run the pass
+    void runOnOperation() override;
+>>>>>>> release-3.2.2-0625-b79d137
 };
 
 // Create the pass
@@ -47,4 +59,8 @@ std::unique_ptr<OperationPass<ModuleOp>> createSplitDataflowPass();
 } // namespace triton
 } // namespace mlir
 
+<<<<<<< HEAD
 #endif // TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_SPLIT_DATAFLOW_PASS_H
+=======
+#endif // TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_SPLIT_DATAFLOW_PASS_H
+>>>>>>> release-3.2.2-0625-b79d137

@@ -23,8 +23,13 @@
 #ifndef TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_COMMON_FLAG_ID_MANAGER_H
 #define TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_COMMON_FLAG_ID_MANAGER_H
 
+<<<<<<< HEAD
 #include "mlir/IR/BuiltinOps.h"
 #include <optional>
+=======
+#include <optional>
+#include "mlir/IR/BuiltinOps.h"
+>>>>>>> release-3.2.2-0625-b79d137
 
 namespace mlir {
 namespace triton {
@@ -40,6 +45,7 @@ public:
   // Constructor: initialize with Module for scanning
   FlagIdManager(ModuleOp module);
 
+<<<<<<< HEAD
   // Acquire an available ID: try to reuse existing flags first (conservative
   // analysis), if cannot reuse, then increment and allocate. insertionPoint:
   // the position where sync operation will be inserted, used for linear
@@ -50,6 +56,19 @@ private:
   // Scan existing Flag IDs
   // Traverse Module to find all existing flag_id to prevent duplicate
   // allocation
+=======
+  // Acquire an available ID: try to reuse existing flags first (conservative analysis),
+  // if cannot reuse, then increment and allocate.
+  // insertionPoint: the position where sync operation will be inserted, used for
+  // linear comparison in reuse analysis. Can be nullptr.
+  int acquireId(Operation* insertionPoint);
+
+  int checkCurrentId();
+
+private:
+  // Scan existing Flag IDs
+  // Traverse Module to find all existing flag_id to prevent duplicate allocation
+>>>>>>> release-3.2.2-0625-b79d137
   void scanExistingFlags(ModuleOp module);
 
   // Currently allocated maximum ID

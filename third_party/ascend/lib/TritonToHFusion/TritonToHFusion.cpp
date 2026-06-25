@@ -207,10 +207,19 @@ struct TritonConv1dToHFusionConversion
 } // namespace
 
 namespace {
+<<<<<<< HEAD
 struct TritonToHFusionPass
     : public mlir::triton::impl::TritonToHFusionBase<TritonToHFusionPass> {
   void runOnOperation() override;
 };
+=======
+    struct TritonToHFusionPass
+        : public mlir::triton::impl::TritonToHFusionBase<
+            TritonToHFusionPass> {
+    bool compileOn91095 = false;
+    void runOnOperation() override;
+    };
+>>>>>>> release-3.2.2-0625-b79d137
 } // namespace
 
 void TritonToHFusionPass::runOnOperation() {
@@ -220,7 +229,11 @@ void TritonToHFusionPass::runOnOperation() {
   // Patterns decide themselves whether to convert (via returning
   // success/failure)
   RewritePatternSet patterns(&getContext());
-  patterns.add<TritonHistogramToHFusionConversion>(patterns.getContext());
+  // On 950 (910B4/91095), histogram is handled by TTOpConverters::HistogramConverter
+  // in TritonToLinalg pass. On other targets, use the HFusion lowering path.
+  if (!compileOn91095) {
+    patterns.add<TritonHistogramToHFusionConversion>(patterns.getContext());
+  }
   patterns.add<TritonFpToFpToHFusionConversion>(patterns.getContext());
   patterns.add<TritonModToHFusionConversion>(patterns.getContext());
   patterns.add<TritonConv1dToHFusionConversion>(patterns.getContext());
@@ -232,7 +245,14 @@ void TritonToHFusionPass::runOnOperation() {
   }
 }
 
+<<<<<<< HEAD
 std::unique_ptr<OperationPass<ModuleOp>>
 mlir::triton::createTritonToHFusionPass() {
   return std::make_unique<TritonToHFusionPass>();
+=======
+std::unique_ptr<OperationPass<ModuleOp>> mlir::triton::createTritonToHFusionPass(bool compileOn91095) {
+  auto pass = std::make_unique<TritonToHFusionPass>();
+  pass->compileOn91095 = compileOn91095;
+  return pass;
+>>>>>>> release-3.2.2-0625-b79d137
 }

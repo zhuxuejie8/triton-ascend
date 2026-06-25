@@ -28,6 +28,20 @@
 #define GET_OP_CLASSES
 #include "ascend/include/Dialect/TritonAscend/IR/TritonAscendOps.h.inc"
 
+<<<<<<< HEAD
 namespace mlir::triton::ascend {} // namespace mlir::triton::ascend
+=======
+#include "mlir/Transforms/InliningUtils.h"
+
+namespace mlir::triton::ascend {
+
+struct TritonAscendInlinerInterface : public mlir::DialectInlinerInterface {
+    using mlir::DialectInlinerInterface::DialectInlinerInterface;
+    // All operations within the TritonAscend dialect (eg: ascend.sort, ascend.flip) can be inlined.
+    bool isLegalToInline(mlir::Operation *, mlir::Region *, bool, mlir::IRMapping &) const final { return true; }
+};
+
+} // namespace mlir::triton::ascend
+>>>>>>> release-3.2.2-0625-b79d137
 
 #endif // TRITON_DIALECT_ASCEND_DIALECT_H

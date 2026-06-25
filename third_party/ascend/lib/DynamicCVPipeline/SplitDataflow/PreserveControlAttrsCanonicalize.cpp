@@ -32,6 +32,7 @@
 
 using namespace mlir;
 
+<<<<<<< HEAD
 static constexpr const char *DEBUG_TYPE = "PreserveControlAttrsCanonicalize";
 #define DBGS() (llvm::dbgs() << '[' << DEBUG_TYPE << "] ")
 
@@ -53,10 +54,34 @@ static bool isTrackedControlFlowOp(Operation *op) {
 static bool canTransferAttrs(Operation *from, Operation *to) {
   return from && to && from != to && isTrackedControlFlowOp(from) &&
          isTrackedControlFlowOp(to) && from->getName() == to->getName();
+=======
+#define DEBUG_TYPE "preserve-control-attrs-canonicalize"
+#define LOG_DEBUG(msg) LLVM_DEBUG(llvm::dbgs() << " [" << DEBUG_TYPE << "] " << msg)
+
+namespace {
+
+static void debugDumpIr(StringRef stage, Operation *op)
+{
+    LOG_DEBUG(stage << "\n";
+              op->print(llvm::dbgs());
+              llvm::dbgs() << "\n");
+}
+
+static bool isTrackedControlFlowOp(Operation *op)
+{
+    return isa<scf::ForOp, scf::IfOp, scf::WhileOp, scf::ParallelOp>(op);
+}
+
+static bool canTransferAttrs(Operation *from, Operation *to)
+{
+    return from && to && from != to && isTrackedControlFlowOp(from) &&
+           isTrackedControlFlowOp(to) && from->getName() == to->getName();
+>>>>>>> release-3.2.2-0625-b79d137
 }
 
 class PreserveControlAttrsListener : public RewriterBase::Listener {
 public:
+<<<<<<< HEAD
   void notifyOperationInserted(Operation *op, OpBuilder::InsertPoint) override {
     recentInserts.insert(op);
   }
@@ -126,10 +151,94 @@ static void populateCanonicalizationPatterns(MLIRContext *ctx,
   for (RegisteredOperationName opName : ctx->getRegisteredOperations()) {
     opName.getCanonicalizationPatterns(patterns, ctx);
   }
+=======
+    void notifyOperationInserted(Operation *op, OpBuilder::InsertPoint) override
+    {
+        recentInserts.insert(op);
+    }
+
+    void notifyOperationErased(Operation *op) override
+    {
+        recentInserts.remove(op);
+    }
+
+    void notifyOperationReplaced(Operation *op, Operation *newOp) override
+    {
+        transferAttrs(op, newOp);
+    }
+
+    void notifyOperationReplaced(Operation *op, ValueRange values) override
+    {
+        if (Operation *newOp = findReplacementOp(op, values)) {
+            transferAttrs(op, newOp);
+            return;
+        }
+    }
+
+private:
+    Operation *findReplacementOp(Operation *oldOp, ValueRange replacements) const
+    {
+        if (!isTrackedControlFlowOp(oldOp))
+            return nullptr;
+
+        // Prefer direct replacement from definingOps
+        for (Value value : replacements) {
+            if (!value)
+                continue;
+            Operation *defOp = value.getDefiningOp();
+            if (defOp && recentInserts.contains(defOp) && canTransferAttrs(oldOp, defOp))
+                return defOp;
+        }
+
+        Block *oldBlock = oldOp->getBlock();
+        if (!oldBlock)
+            return nullptr;
+
+        // Fallback: search recentInserts in reverse, but only accept same-block candidates.
+        for (Operation *candidate : llvm::reverse(recentInserts.getArrayRef())) {
+            if (!canTransferAttrs(oldOp, candidate))
+                continue;
+
+            if (candidate->getBlock() != oldBlock)
+                continue;
+            return candidate;
+        }
+        return nullptr;
+    }
+
+    static void transferAttrs(Operation *from, Operation *to)
+    {
+        if (!canTransferAttrs(from, to))
+            return;
+
+        for (NamedAttribute attr : from->getAttrs()) {
+            if (to->hasAttr(attr.getName()))
+                continue;
+            to->setAttr(attr.getName(), attr.getValue());
+        }
+    }
+
+    llvm::SetVector<Operation *> recentInserts;
+};
+
+static void populateCanonicalizationPatterns(MLIRContext *ctx,
+                                             RewritePatternSet &patterns)
+{
+    for (Dialect *dialect : ctx->getLoadedDialects())
+    {
+        dialect->getCanonicalizationPatterns(patterns);
+    }
+
+    for (RegisteredOperationName opName : ctx->getRegisteredOperations())
+    {
+        opName.getCanonicalizationPatterns(patterns, ctx);
+    }
+>>>>>>> release-3.2.2-0625-b79d137
 }
 
 } // namespace
 
+<<<<<<< HEAD
 void mlir::triton::PreserveControlAttrsCanonicalizePass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   populateCanonicalizationPatterns(&getContext(), patterns);
@@ -144,11 +253,34 @@ void mlir::triton::PreserveControlAttrsCanonicalizePass::runOnOperation() {
     getOperation()->emitError("PreserveControlAttrsCanonicalizePass failed");
     signalPassFailure();
   }
+=======
+void mlir::triton::PreserveControlAttrsCanonicalizePass::runOnOperation()
+{
+    debugDumpIr("before PreserveControlAttrsCanonicalizePass", getOperation());
+
+    RewritePatternSet patterns(&getContext());
+    populateCanonicalizationPatterns(&getContext(), patterns);
+
+    PreserveControlAttrsListener listener;
+    GreedyRewriteConfig config;
+    config.listener = &listener;
+
+    if (failed(applyPatternsAndFoldGreedily(getOperation(),
+                                            FrozenRewritePatternSet(std::move(patterns)),
+                                            config))) {
+        getOperation()->emitError("PreserveControlAttrsCanonicalizePass failed");
+        signalPassFailure();
+        return;
+    }
+
+    debugDumpIr("after PreserveControlAttrsCanonicalizePass", getOperation());
+>>>>>>> release-3.2.2-0625-b79d137
 }
 
 namespace mlir {
 namespace triton {
 
+<<<<<<< HEAD
 std::unique_ptr<OperationPass<ModuleOp>>
 createPreserveControlAttrsCanonicalizePass() {
   return std::make_unique<PreserveControlAttrsCanonicalizePass>();
@@ -162,3 +294,19 @@ void registerPreserveControlAttrsCanonicalizePasses() {
 
 } // namespace triton
 } // namespace mlir
+=======
+std::unique_ptr<OperationPass<ModuleOp>> createPreserveControlAttrsCanonicalizePass()
+{
+    return std::make_unique<PreserveControlAttrsCanonicalizePass>();
+}
+
+void registerPreserveControlAttrsCanonicalizePasses()
+{
+    registerPass([]() -> std::unique_ptr<mlir::Pass> {
+        return createPreserveControlAttrsCanonicalizePass();
+    });
+}
+
+} // namespace triton
+} // namespace mlir
+>>>>>>> release-3.2.2-0625-b79d137

@@ -7,6 +7,7 @@
 
 ```python
 triton.language.extract_slice(
+<<<<<<< HEAD
     ful,
     offsets,
     sizes,
@@ -14,6 +15,15 @@ triton.language.extract_slice(
     _builder=None,
     _generator=None
 ) -> tensor
+=======
+ ful, 
+ offsets, 
+ sizes, 
+ strides, 
+ _builder=None, 
+ _generator=None
+)→ tensor
+>>>>>>> release-3.2.2-0625-b79d137
 ```
 
 ## 2. OP 规格

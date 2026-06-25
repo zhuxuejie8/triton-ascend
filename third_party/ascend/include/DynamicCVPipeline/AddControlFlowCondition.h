@@ -23,6 +23,7 @@
 #ifndef TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_ADD_CONTROLFLOW_CONDITION_PASS_H
 #define TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_ADD_CONTROLFLOW_CONDITION_PASS_H
 
+<<<<<<< HEAD
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/TransformOps/DialectExtension.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -30,19 +31,61 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+=======
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallVector.h"
+#include "mlir/Dialect/Linalg/TransformOps/DialectExtension.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/Pass/Pass.h"
+#include "llvm/ADT/SmallPtrSet.h"
+>>>>>>> release-3.2.2-0625-b79d137
 
 namespace mlir {
 namespace triton {
 
+<<<<<<< HEAD
+=======
+// Indicates the relationship between a tensor iter_args and ssbuffer.if in the main_loop
+struct TensorIterArgIfOpRelation {
+  Value iterArg;
+  llvm::SmallVector<scf::IfOp> producers;
+  llvm::SmallVector<scf::IfOp> consumers;
+};
+
+// Indicates the variables that need to be controlled when an ifOp is both a producer and consumer of a tensor iter_args
+struct TensorIterArgIfOpVars {
+  // The variables that need to be controlled as a producer
+  llvm::SmallVector<Value> producerVars;
+  // The variables that need to be controlled as a consumer
+  llvm::SmallVector<Value> consumerVars;
+};
+
+>>>>>>> release-3.2.2-0625-b79d137
 struct ControlFlowConditionInfo {
   llvm::DenseMap<scf::ForOp, SmallVector<int>> blockCounters;
   llvm::DenseMap<scf::ForOp, int> blockCounterNums;
   llvm::DenseMap<scf::ForOp, SmallVector<int>> innerDepConds;
 
   llvm::DenseMap<Value, SmallVector<Value>> crossCoreDependentMap;
+<<<<<<< HEAD
   llvm::DenseMap<scf::ForOp, llvm::DenseMap<Value, SmallVector<Value>>>
       intraCoreDependentMap;
 
+=======
+  llvm::DenseMap<scf::ForOp, llvm::DenseMap<Value, SmallVector<Value>>> intraCoreDependentMap;
+  // Used to store the producer/consumer relationship between the tensor type iter_args in the main_loop and ssbuffer.if
+  // Note: vector index corresponds to iter arg index in the for op
+  llvm::DenseMap<scf::ForOp, llvm::SmallVector<TensorIterArgIfOpRelation>> tensorIterArgDepsMap;
+  // Used to record the index of the control condition variable for the newly created iter_args for tensor iter_args
+  llvm::DenseMap<scf::ForOp, llvm::DenseMap<Value, SmallVector<int>>> tensorIterArgIndicesMap;
+  
+  // Record each ifOp as the variables that need to be controlled when it acts as a consumer or a producer
+  llvm::DenseMap<scf::IfOp, TensorIterArgIfOpVars> tensorIterArgIfOpVars;
+  
+>>>>>>> release-3.2.2-0625-b79d137
   // unique counter value for each ifblock
   llvm::DenseMap<scf::IfOp, Value> cntArgs;
 };
@@ -54,6 +97,7 @@ public:
 
   void runOnOperation() override;
 
+<<<<<<< HEAD
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<LLVM::LLVMDialect>();
   }
@@ -61,6 +105,11 @@ public:
   llvm::StringRef getArgument() const override {
     return "add-control-flow-condition";
   }
+=======
+  void getDependentDialects(DialectRegistry &registry) const override { registry.insert<LLVM::LLVMDialect>(); }
+
+  llvm::StringRef getArgument() const override { return "add-control-flow-condition"; }
+>>>>>>> release-3.2.2-0625-b79d137
 };
 
 std::unique_ptr<OperationPass<ModuleOp>> createAddControlFlowConditionPass();
@@ -68,4 +117,8 @@ std::unique_ptr<OperationPass<ModuleOp>> createAddControlFlowConditionPass();
 void registerAddControlFlowConditionPasses();
 } // namespace triton
 } // namespace mlir
+<<<<<<< HEAD
 #endif // TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_ADD_CONTROLFLOW_CONDITION_PASS_H
+=======
+#endif // TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_ADD_CONTROLFLOW_CONDITION_PASS_H
+>>>>>>> release-3.2.2-0625-b79d137

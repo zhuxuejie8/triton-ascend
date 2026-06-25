@@ -308,8 +308,21 @@ def UnstructuredLoadOp : TT_Ascend_Op<"unstructured_load", [
     analysis, enabling LinalgPass to generate hfusion.gather_load or SIMT
     template calls without re-analyzing the pointer chain.
 
+<<<<<<< HEAD
     The base pointer is a scalar !tt.ptr<T>, which the LinalgPass TypeConverter
     automatically converts to memref<?xT>.
+=======
+    Load values from global memory based on per-element offsets. If `mask`
+    is provided, false lanes return `other`.
+
+    The operation takes:
+    - src: Source pointer
+    - offsets: Tensor of per-element offsets (relative to `src`) for accessing source memory
+    - mask (optional):  if mask[idx] is false, do not load the data at address pointer[idx]
+    - other (optional): if mask[idx] is false, return other[idx]
+    - isVolatile: defaults to true. Set to false only when analysis proves
+      the source pointer has no prior possible writes.
+>>>>>>> release-3.2.2-0625-b79d137
   }];
 
   let arguments = (
@@ -318,9 +331,13 @@ def UnstructuredLoadOp : TT_Ascend_Op<"unstructured_load", [
         DenseI64ArrayAttr:$unstructuredDims,
         Optional<TT_BoolLike>:$mask,
         Optional<TT_Type>:$other,
+<<<<<<< HEAD
         OptionalAttr<TT_CacheModifierAttr>:$cache,
         OptionalAttr<TT_EvictionPolicyAttr>:$evict,
         OptionalAttr<BoolAttr>:$isVolatile
+=======
+        DefaultValuedAttr<BoolAttr, "true">:$isVolatile
+>>>>>>> release-3.2.2-0625-b79d137
   );
 
   let results = (outs TT_Tensor:$result);
@@ -332,6 +349,75 @@ def UnstructuredLoadOp : TT_Ascend_Op<"unstructured_load", [
     (`,` $mask^ `:` type($mask))?
     (`,` $other^ `:` type($other))?
     attr-dict `->` type($result)
+  }];
+}
+
+//
+// Built-in: StrideLoad Op
+//
+def StrideLoadOp : TT_Ascend_Op<"stride_load", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  SameVariadicOperandSize
+]> {
+  let summary = "Built-in: strided load from global memory";
+
+  let description = [{
+    Built-in operation emitted by the compiler for SIMT stride-load templates.
+    It loads a tensor from a scalar source pointer with one i32/i64 linear
+    base offset, per-dimension physical strides and valid element counts.
+    Out-of-bound elements are filled with the scalar `other` value.
+  }];
+
+  let arguments = (
+    ins TT_Ptr:$src,
+        AnyTypeOf<[I32, I64]>:$offset,
+        AnyType:$other,
+        Variadic<AnyTypeOf<[I32, I64]>>:$stride,
+        Variadic<AnyTypeOf<[I32, I64]>>:$numel
+  );
+
+  let results = (outs TT_Tensor:$result);
+
+  let assemblyFormat = [{
+    $src `:` type($src) `,`
+    $offset `:` type($offset) `,`
+    $other `:` type($other) `,`
+    `[` $stride `:` type($stride) `]` `,`
+    `[` $numel `:` type($numel) `]`
+    attr-dict `->` type($result)
+  }];
+}
+
+//
+// Built-in: StrideStore Op
+//
+def StrideStoreOp : TT_Ascend_Op<"stride_store", [
+  MemoryEffects<[MemWrite<GlobalMemory>]>,
+  SameVariadicOperandSize
+]> {
+  let summary = "Built-in: strided store to global memory";
+
+  let description = [{
+    Built-in operation emitted by the compiler for SIMT stride-store templates.
+    It stores a tensor to a scalar destination pointer with one i32/i64 linear
+    base offset, per-dimension physical strides and valid element counts.
+  }];
+
+  let arguments = (
+    ins TT_Ptr:$dst,
+        TT_Type:$src,
+        AnyTypeOf<[I32, I64]>:$offset,
+        Variadic<AnyTypeOf<[I32, I64]>>:$stride,
+        Variadic<AnyTypeOf<[I32, I64]>>:$numel
+  );
+
+  let assemblyFormat = [{
+    $dst `:` type($dst) `,`
+    $src `:` type($src) `,`
+    $offset `:` type($offset) `,`
+    `[` $stride `:` type($stride) `]` `,`
+    `[` $numel `:` type($numel) `]`
+    attr-dict
   }];
 }
 

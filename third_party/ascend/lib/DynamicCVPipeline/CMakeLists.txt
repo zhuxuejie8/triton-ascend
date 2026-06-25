@@ -1,7 +1,17 @@
+<<<<<<< HEAD
 file(GLOB PLAN_COMPUTE_BLOCK_PASS_SRC
   "PlanComputeBlock/*.cpp"
 )
 file(GLOB COMMON_SRC
+=======
+file(GLOB STANDARDIZE_OP_PASS_SRC CONFIGURE_DEPENDS
+  "StandardizeOp/*.cpp"
+)
+file(GLOB PLAN_COMPUTE_BLOCK_PASS_SRC CONFIGURE_DEPENDS
+  "PlanComputeBlock/*.cpp"
+)
+file(GLOB COMMON_SRC CONFIGURE_DEPENDS
+>>>>>>> release-3.2.2-0625-b79d137
   "Common/*.cpp"
 )
 file(GLOB SPLIT_DATAFLOW_SRC_FILES CONFIGURE_DEPENDS
@@ -19,11 +29,41 @@ file(GLOB ADD_CONTROLFLOW_CONDITION_SRC_FILES CONFIGURE_DEPENDS
     "AddControlFlowCondition/*.cpp"
 )
 
+<<<<<<< HEAD
 add_triton_library(DynamicCVPipeline
   AddDynamicCVPipeline.cpp
   PlanComputeBlock.cpp
   ${PLAN_COMPUTE_BLOCK_PASS_SRC}
   ${COMMON_SRC}
+=======
+file(GLOB Compute_BLOCK_OPT_SRC_FILES CONFIGURE_DEPENDS
+    "ComputeBlockOpt/*.cpp"
+)
+
+file(GLOB ANALYZE_DATAFLOW_SRC_FILES CONFIGURE_DEPENDS
+    "AnalyzeDataFlow/*.cpp"
+)
+
+file(GLOB PRE_CHECK_AVAILABLE_SRC_FILES CONFIGURE_DEPENDS
+    "PreCheckAvailable/*.cpp"
+)
+
+add_triton_library(DynamicCVPipeline
+  AddDynamicCVPipeline.cpp
+  PreCheckAvailable.cpp
+
+  StandardizeOp.cpp
+  ${STANDARDIZE_OP_PASS_SRC}
+
+  PlanComputeBlock.cpp
+  ComputeBlockOptPass.cpp
+  AnalyzeDataFlow.cpp
+  ${PLAN_COMPUTE_BLOCK_PASS_SRC}
+  ${COMMON_SRC}
+  ${Compute_BLOCK_OPT_SRC_FILES}
+  ${ANALYZE_DATAFLOW_SRC_FILES}
+  ${PRE_CHECK_AVAILABLE_SRC_FILES}
+>>>>>>> release-3.2.2-0625-b79d137
   SplitDataflow.cpp
   SeparateMemoryFromComputePass.cpp
   AllocMultiCache.cpp
@@ -33,6 +73,10 @@ add_triton_library(DynamicCVPipeline
   ${SEPARATE_MEMORY_FROM_COMPUTE_SRC_FILES}
   ${ALLOC_MULTI_CACHE_SRCS_FILES}
   ${ADD_CONTROLFLOW_CONDITION_SRC_FILES}
+<<<<<<< HEAD
+=======
+	RemoveAttributes.cpp
+>>>>>>> release-3.2.2-0625-b79d137
 
   DEPENDS
   AddDynamicCVPipelinePassIncGen
@@ -40,4 +84,14 @@ add_triton_library(DynamicCVPipeline
   LINK_LIBS
   BiShengIRHIVMDialect
   BiShengIRScopeDialect
+<<<<<<< HEAD
+=======
+  BiShengIRAnnotationDialect
+  MLIRLinalgTransformOps
+  MLIRLinalgTransforms
+  MLIRSCFTransformOps
+  MLIRTransformDialect
+  MLIRTransformDialectTransforms
+  MLIRTransforms
+>>>>>>> release-3.2.2-0625-b79d137
 )

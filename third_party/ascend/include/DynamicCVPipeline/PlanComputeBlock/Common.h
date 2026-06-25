@@ -23,9 +23,15 @@
 #ifndef TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_PLAN_COMPUTE_BLOCK_COMMON_H
 #define TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_PLAN_COMPUTE_BLOCK_COMMON_H
 
+<<<<<<< HEAD
 #include "DynamicCVPipeline/Common/MemoryEffectsTracker.h"
 #include "DynamicCVPipeline/Common/Utils.h"
 #include "ascend/include/DynamicCVPipeline/PlanComputeBlock/ComputeBlockIdManager.h"
+=======
+#include "ascend/include/DynamicCVPipeline/PlanComputeBlock/ComputeBlockIdManager.h"
+#include "DynamicCVPipeline/Common/MemoryEffectsTracker.h"
+#include "DynamicCVPipeline/Common/Utils.h"
+>>>>>>> release-3.2.2-0625-b79d137
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Operation.h"
 #include "llvm/ADT/DenseMap.h"
@@ -34,6 +40,7 @@
 namespace mlir {
 namespace CVPipeline {
 
+<<<<<<< HEAD
 inline bool isCubeOp(Operation *op) {
   return getOpCoreType(op) == CoreType::CUBE_ONLY;
 }
@@ -41,6 +48,11 @@ Operation *getAncestorInBlock(Operation *inner, Block *block);
 void initializeIndegreeForBlock(Block *block,
                                 llvm::DenseMap<Operation *, int> &indegree,
                                 const MemoryDependenceGraph &memGraph);
+=======
+Operation *getAncestorInBlock(Operation *inner, Block *block);
+void initializeIndegreeForBlock(Block *block, llvm::DenseMap<Operation *, int> &indegree,
+                                const MemoryDependenceGraph &memGraph, ComputeBlockIdManager &bm);
+>>>>>>> release-3.2.2-0625-b79d137
 
 } // namespace CVPipeline
 } // namespace mlir

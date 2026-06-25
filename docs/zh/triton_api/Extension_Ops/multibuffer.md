@@ -7,10 +7,17 @@
 
 ```python
 triton.language.multibuffer(
+<<<<<<< HEAD
     src,
     size,
     _builder=None
 ) -> None
+=======
+ src, 
+ size, 
+ _builder=None
+)→ None
+>>>>>>> release-3.2.2-0625-b79d137
 ```
 
 ## 2. OP 规格

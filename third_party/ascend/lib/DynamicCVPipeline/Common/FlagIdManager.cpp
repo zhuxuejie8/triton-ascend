@@ -21,6 +21,7 @@
  */
 
 #include "ascend/include/DynamicCVPipeline/Common/FlagIdManager.h"
+<<<<<<< HEAD
 #include "bishengir/Dialect/HIVM/IR/HIVM.h"
 #include "mlir/IR/Operation.h"
 #include "llvm/Support/Debug.h"
@@ -29,12 +30,22 @@ using namespace mlir;
 static constexpr const char *DEBUG_TYPE = "flag-id-manager";
 #define LOG_DEBUG(...)                                                         \
   LLVM_DEBUG(llvm::dbgs() << " [" << DEBUG_TYPE << "] " << __VA_ARGS__)
+=======
+#include "mlir/IR/Operation.h"
+#include "llvm/Support/Debug.h"
+#include "bishengir/Dialect/HIVM/IR/HIVM.h"
+
+using namespace mlir;
+static constexpr const char *DEBUG_TYPE = "flag-id-manager";
+#define LOG_DEBUG(...) LLVM_DEBUG(llvm::dbgs() << " [" << DEBUG_TYPE << "] " << __VA_ARGS__)
+>>>>>>> release-3.2.2-0625-b79d137
 
 using namespace mlir::triton;
 using namespace hivm;
 
 static constexpr int kMaxOps = 1024;
 
+<<<<<<< HEAD
 FlagIdManager::FlagIdManager(ModuleOp module) {
   this->module = module;
   scanExistingFlags(module);
@@ -64,4 +75,38 @@ int FlagIdManager::acquireId(Operation *insertionPoint) {
   }
 
   return INVALID_FLAG_ID;
+=======
+FlagIdManager::FlagIdManager(ModuleOp module)
+{
+    this->module = module;
+    scanExistingFlags(module);
+    LOG_DEBUG("FlagIdManager: Initialized with max_id = " << currentMaxId << "\n");
+}
+
+void FlagIdManager::scanExistingFlags(ModuleOp module)
+{
+    module.walk([&](Operation *op) {
+        if (isa<hivm::SyncBlockSetOp>(op) || isa<hivm::SyncBlockWaitOp>(op)) {
+            int flag = -1;
+            if (auto intAttr = op->getAttrOfType<IntegerAttr>("static_flag_id")) {
+                flag = (int)intAttr.getInt();
+            } else if (auto intAttr = op->getAttrOfType<IntegerAttr>("flag")) {
+                flag = (int)intAttr.getInt();
+            }
+            if (flag >= 0) {
+                currentMaxId = std::max(currentMaxId, (int64_t)flag);
+            }
+        }
+    });
+}
+
+int FlagIdManager::acquireId(Operation* insertionPoint)
+{
+    return ++currentMaxId;
+}
+
+int FlagIdManager::checkCurrentId()
+{
+    return currentMaxId <= MAX_FLAG_ID;
+>>>>>>> release-3.2.2-0625-b79d137
 }

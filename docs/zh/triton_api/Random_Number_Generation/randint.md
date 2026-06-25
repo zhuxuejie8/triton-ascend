@@ -7,8 +7,13 @@
 
 ```python
 triton.language.randint(
+<<<<<<< HEAD
  seed,
  offset,
+=======
+ seed, 
+ offset, 
+>>>>>>> release-3.2.2-0625-b79d137
  n_rounds: constexpr = 10
 )
 ```

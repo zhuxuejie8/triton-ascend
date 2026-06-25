@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 // RUN: triton-opt --pass-pipeline="builtin.module(auto-blockify{auto-blockify-size=1},triton-to-structured{enable-mask-fallback-conversion=false optimize-dynamic-offset=false},discrete-mask-access-conversion{compile-on-910-95=true compile-mode=simd},triton-to-annotation,triton-to-unstructure{compile-on-910-95=true force-scalarize-mode=false compile-mode=simd},triton-to-hivm,triton-to-hfusion,triton-to-llvm,bubble-up-operation{enable-aggressive-mode=true},triton-to-structured{enable-mask-fallback-conversion=false optimize-dynamic-offset=false},triton-to-linalg{compile-on-910-95=true enable-nd2nz-on-vector=false enable-select-analysis=true global-kernel=false named-ops=true})" --split-input-file %s | FileCheck %s
+=======
+// RUN: triton-opt --pass-pipeline="builtin.module(auto-blockify{auto-blockify-size=1},triton-to-structured{enable-mask-fallback-conversion=false optimize-dynamic-offset=false},discrete-mask-access-conversion{compile-on-910-95=true force-simt-template=false},triton-to-annotation,triton-to-unstructure{compile-on-910-95=true force-scalarize-mode=false force-simt-template=false},triton-to-hivm,triton-to-hfusion,triton-to-llvm,bubble-up-operation{enable-aggressive-mode=true},triton-to-structured{enable-mask-fallback-conversion=false optimize-dynamic-offset=false},triton-to-linalg{compile-on-910-95=true enable-nd2nz-on-vector=false enable-select-analysis=true global-kernel=false named-ops=true})" --split-input-file %s | FileCheck %s
+>>>>>>> release-3.2.2-0625-b79d137
 
 module {
   tt.func public @_attn_bwd(%arg0: !tt.ptr<f16> {tt.divisibility = 16 : i32},
@@ -142,4 +146,8 @@ module {
 // CHECK: memref.copy
 // CHECK: scf.for
 // CHECK: hivm.hir.store
+<<<<<<< HEAD
 // CHECK: bufferization.materialize_in_destination
+=======
+// CHECK: bufferization.materialize_in_destination
+>>>>>>> release-3.2.2-0625-b79d137

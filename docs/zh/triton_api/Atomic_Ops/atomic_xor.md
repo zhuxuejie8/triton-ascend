@@ -7,6 +7,7 @@
 
 ```python
 triton.language.atomic_xor(
+<<<<<<< HEAD
     pointer,
     val,
     mask=None,
@@ -14,6 +15,15 @@ triton.language.atomic_xor(
     scope=None,
     _semantic=None
 ) -> pointer
+=======
+ pointer, 
+ val, 
+ mask=None, 
+ sem=None, 
+ scope=None, 
+ _semantic=None
+)→ pointer
+>>>>>>> release-3.2.2-0625-b79d137
 ```
 
 可以作为tensor的成员函数调用，如`x.atomic_xor(...)`，与`atomic_xor(x, ...)`等效。

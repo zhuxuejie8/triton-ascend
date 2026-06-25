@@ -334,6 +334,7 @@ void init_triton_ir(py::module &&m) {
 
   py::class_<MLIRContext>(m, "context", py::module_local())
       .def(py::init<>())
+<<<<<<< HEAD
       .def(
           "__enter__", [](MLIRContext &self) -> MLIRContext & { return self; },
           py::return_value_policy::reference)
@@ -342,6 +343,8 @@ void init_triton_ir(py::module &&m) {
              // Keep context alive for the duration of the scope.
              return false;
            })
+=======
+>>>>>>> release-3.2.2-0625-b79d137
       .def("printOpOnDiagnostic",
            [](MLIRContext &self, bool v) { self.printOpOnDiagnostic(v); })
       .def("printStackTraceOnDiagnostic",
@@ -845,6 +848,7 @@ void init_triton_ir(py::module &&m) {
              return self.getBuilder().getStringAttr(value);
            })
       .def("get_i64_array_attr",
+<<<<<<< HEAD
            [](TritonOpBuilder &self, const std::vector<int64_t> &array) {
              return self.getBuilder().getI64ArrayAttr(array);
            })
@@ -864,6 +868,11 @@ void init_triton_ir(py::module &&m) {
                      licmAttr, {}, {}, {}, {}, {}, {}, {}, {}, {});
              return la;
            })
+=======
+          [](TritonOpBuilder &self, const std::vector<int64_t>& array) {
+            return self.getBuilder().getI64ArrayAttr(array);
+          })
+>>>>>>> release-3.2.2-0625-b79d137
       // Use arith.ConstantOp to create constants
       // Constants
       .def("get_int1",

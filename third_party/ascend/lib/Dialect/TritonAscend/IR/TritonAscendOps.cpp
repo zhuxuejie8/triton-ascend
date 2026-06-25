@@ -32,6 +32,13 @@ void UnstructuredLoadOp::getEffects(
                        triton::GlobalMemory::get());
 }
 
+void StrideLoadOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get(), &getSrcMutable(),
+                       triton::GlobalMemory::get());
+}
+
 //-- IndexSelectSimdOp --
 LogicalResult IndexSelectSimdOp::inferReturnTypes(
     MLIRContext *context, std::optional<Location> location, ValueRange operands,

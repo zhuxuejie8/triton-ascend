@@ -20,6 +20,11 @@
  * THE SOFTWARE.
  */
 
+<<<<<<< HEAD
+=======
+#include "ascend/include/DiscreteMaskAccessConversion/Passes.h"
+#include "TritonToUnstructure/IndirectAtomicUtils.h"
+>>>>>>> release-3.2.2-0625-b79d137
 #include "Utils/Utils.h"
 #include "ascend/include/DiscreteMaskAccessConversion/Passes.h"
 
@@ -28,6 +33,7 @@
 #include "ascend/include/TritonToStructured/MemOpConverter.h"
 #include "ascend/include/TritonToUnstructure/OffsetAnalysis.h"
 #include "bishengir/Dialect/HIVM/IR/HIVM.h"
+#include "ascend/include/TritonToStructured/MemOpConverter.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
@@ -51,17 +57,147 @@ using namespace mlir;
 using namespace hivm;
 
 // File-scope flags set by DiscreteMaskAccessConversionPass::runOnOperation()
+<<<<<<< HEAD
 // before pattern application, so that OpRewritePattern subclasses can read
 // them.
 static bool compileOn91095Flag = false;
 static mlir::triton::ascend::CompileMode compileModeFlag =
     mlir::triton::ascend::CompileMode::Simd;
 static bool enableSyncBlockLockFlag = true;
+=======
+// before pattern application, so that OpRewritePattern subclasses can read them.
+static bool compileOn91095Flag = false;
+static bool forceSimtTemplateFlag = false;
+static bool enableSyncBlockLockFlag = true;
+static constexpr const char *routeDiscreteMaskToSimtAttrName =
+    "route_discrete_mask_to_simt";
+
+static bool traceUserToTargetOp(Value val) {
+  llvm::SmallVector<Value, 32> worklist;
+  llvm::SmallPtrSet<Value, 32> visited;
+  worklist.push_back(val);
+
+  while (!worklist.empty()) {
+      Value currVal = worklist.pop_back_val();
+      if (!visited.insert(currVal).second)
+          continue;
+
+      for (Operation* user : currVal.getUsers()) {
+          if (auto mulOp = dyn_cast<arith::MulIOp>(user)) {
+              Value lhs = mulOp.getLhs();
+              Value rhs = mulOp.getRhs();
+              Value constVal;
+              if (lhs.getDefiningOp<arith::ConstantOp>()) {
+                  constVal = lhs;
+              } else if (rhs.getDefiningOp<arith::ConstantOp>()) {
+                  constVal = rhs;
+              } else {
+                  continue;
+              }
+
+              auto constDef = constVal.getDefiningOp<arith::ConstantOp>();
+              int64_t blockSize = 0;
+              if (auto intAttr = mlir::dyn_cast<IntegerAttr>(constDef.getValue())) {
+                  blockSize = intAttr.getInt();
+              }
+
+              llvm::SmallVector<Value, 8> searchQueue;
+              llvm::SmallPtrSet<Value, 8> searchVis;
+              for (Value mulRes : mulOp->getResults()) {
+                  searchQueue.push_back(mulRes);
+                  searchVis.insert(mulRes);
+              }
+              
+              bool findMatch = false;
+              while (!searchQueue.empty()) {
+                  Value checkVal = searchQueue.pop_back_val();
+                  for (Operation* subUser : checkVal.getUsers()) {
+                    if (auto addOp = dyn_cast<arith::AddIOp>(subUser))
+                    {
+                        Value otherOperand = (addOp.getLhs() == checkVal)
+                            ? addOp.getRhs() : addOp.getLhs();
+                    
+                        Value curSrc = otherOperand;
+                        bool hitRange = false;
+                        int depth = 0;
+                        while (curSrc.getDefiningOp() && depth < 5)
+                        {
+                            Operation* defOp = curSrc.getDefiningOp();
+                            if (auto rangeOp = dyn_cast<triton::MakeRangeOp>(defOp))
+                            {
+                                if (rangeOp.getEnd() == blockSize)
+                                {
+                                    hitRange = true;
+                                    break;
+                                }
+                            }
+
+                            if (isa<arith::ExtSIOp, triton::SplatOp,
+                                    triton::ExpandDimsOp, triton::BroadcastOp>(defOp))
+                            {
+                                curSrc = defOp->getOperand(0);
+                                depth++;
+                                continue;
+                            }
+                            break;
+                        }
+                        if (hitRange)
+                        {
+                            findMatch = true;
+                            break;
+                        }
+                    }
+                      if (isa<arith::ExtSIOp, triton::SplatOp,
+                              triton::ExpandDimsOp, triton::BroadcastOp>(subUser)) {
+                          for (Value subRes : subUser->getResults()) {
+                              if (!searchVis.count(subRes)) {
+                                  searchVis.insert(subRes);
+                                  searchQueue.push_back(subRes);
+                              }
+                          }
+                      }
+                  }
+                  if (findMatch) break;
+              }
+              if (findMatch) {
+                  return true;
+              }
+
+              for (Value mulRes : mulOp->getResults()) {
+                  worklist.push_back(mulRes);
+              }
+          }
+
+          if (isa<arith::ExtSIOp, triton::SplatOp, triton::ExpandDimsOp,
+                  triton::BroadcastOp>(user)) {
+              for (Value res : user->getResults()) {
+                  worklist.push_back(res);
+              }
+          }
+      }
+  }
+  return false;
+}
+
+static bool checkAllProgramIdNonOverlap(ModuleOp module)
+{
+  bool allNonOverlap = true;
+  module.walk([&](triton::GetProgramIdOp pidOp){
+    if(!traceUserToTargetOp(pidOp.getResult()))
+    {
+      allNonOverlap = false;
+    }
+  });
+  return allNonOverlap;
+}
+
+>>>>>>> release-3.2.2-0625-b79d137
 
 LogicalResult isDiscreteMask(Operation *op, Value mask,
                              PatternRewriter &rewriter) {
-  if (!mask)
+  if (!mask || op->hasAttr(routeDiscreteMaskToSimtAttrName)) {
     return failure();
+  }
 
   MaskState mstate;
   auto isContMask = mstate.parse(mask, op->getLoc(), rewriter);
@@ -166,6 +302,7 @@ struct DiscreteMaskStoreConversion : OpRewritePattern<triton::StoreOp> {
     if (failed(isDiscreteMask(op, mask, rewriter)))
       return failure();
 
+<<<<<<< HEAD
     // Mix compile: tag and let UnstructurePass convert to UnstructuredStoreOp;
     // hfusion scatter_store mask operand handles per-element guarding natively.
     if (compileOn91095Flag && ascend::isMixCompileMode(compileModeFlag)) {
@@ -180,6 +317,20 @@ struct DiscreteMaskStoreConversion : OpRewritePattern<triton::StoreOp> {
     // accesses and discMask to select the final per-element value. This
     // prevents the unguarded full-load from reading past the tail-block
     // boundary.
+=======
+    op->setAttr(routeDiscreteMaskToSimtAttrName, rewriter.getUnitAttr());
+
+    auto ptr = op.getPtr();
+    auto ptrType = dyn_cast<RankedTensorType>(ptr.getType());
+    bool rankWithinIndirectFastPathLimit = ptrType && ptrType.getShape().size() <= 5;
+    if (compileOn91095Flag && forceSimtTemplateFlag && rankWithinIndirectFastPathLimit) {
+      return failure();
+    }
+
+    // When mask = contMask & discMask, use contMask to bound GM accesses and
+    // discMask to select the final per-element value. This prevents the
+    // unguarded full-load from reading past the tail-block boundary.
+>>>>>>> release-3.2.2-0625-b79d137
     auto [contMask, discMask] = decomposeAndMask(op, mask, loc, rewriter);
     if (contMask && discMask) {
       // insert sync_block_lock
@@ -202,9 +353,14 @@ struct DiscreteMaskStoreConversion : OpRewritePattern<triton::StoreOp> {
       return success();
     }
 
+<<<<<<< HEAD
     // SIMD fallback: original full load + select (contMask absent, pure
     // discrete). Has DDR OOB risk but no better option in pure simd mode.
     // insert sync_block_lock to serialize the read-modify-write window.
+=======
+    // Fallback: original full load + select (contMask absent, pure discrete).
+    // insert sync_block_lock
+>>>>>>> release-3.2.2-0625-b79d137
     auto lockVar = MemOpConverter::createSyncBlockLockVar(rewriter, loc);
     if (enableSyncBlockLockFlag) {
       rewriter.create<hivm::SyncBlockLockOp>(loc, lockVar);
@@ -241,6 +397,17 @@ struct DiscreteMaskLoadConversion : OpRewritePattern<triton::LoadOp> {
 
     if (failed(isDiscreteMask(op, mask, rewriter)))
       return failure();
+<<<<<<< HEAD
+=======
+
+    op->setAttr(routeDiscreteMaskToSimtAttrName, rewriter.getUnitAttr());
+
+    auto ptrType = dyn_cast<RankedTensorType>(ptr.getType());
+    bool rankWithinIndirectFastPathLimit = ptrType && ptrType.getShape().size() <= 5;
+    if (compileOn91095Flag && forceSimtTemplateFlag && rankWithinIndirectFastPathLimit) {
+      return failure();
+    }
+>>>>>>> release-3.2.2-0625-b79d137
 
     // Mix compile: tag and let UnstructurePass convert to UnstructuredLoadOp;
     // hfusion gather_load mask operand handles per-element guarding natively.
@@ -332,8 +499,13 @@ struct DiscreteMaskAtomicConversion
 
     FailureOr<mlir::Value> fill = specializeTypelessValueToConstant(
         typelessVal, src.getType(), loc, rewriter);
-    if (failed(fill))
+    if (failed(fill)) {
+      LLVM_DEBUG({
+        llvm::dbgs() << "Unsupported type for constant creation: " << src.getType() << "\n";
+      });
       op->emitError("Unsupported atomic operation.");
+      return failure();
+    }
 
     auto maskedValue = rewriter.create<arith::SelectOp>(loc, mask, src, *fill);
     auto newAtomicOp = rewriter.create<mlir::triton::AtomicRMWOp>(
@@ -350,10 +522,16 @@ DiscreteMaskAccessConversionPass::DiscreteMaskAccessConversionPass(
 
 void DiscreteMaskAccessConversionPass::runOnOperation() {
   compileOn91095Flag = this->compileOn91095;
+<<<<<<< HEAD
   compileModeFlag =
       ascend::resolveCompileMode(this->compileMode, this->forceSimtTemplate);
   enableSyncBlockLockFlag = this->enableSyncBlockLock;
 
+=======
+  forceSimtTemplateFlag = this->forceSimtTemplate;
+  bool tileNonOverlap = checkAllProgramIdNonOverlap(getOperation());
+  enableSyncBlockLockFlag = !tileNonOverlap;
+>>>>>>> release-3.2.2-0625-b79d137
   auto moduleOp = getOperation();
 
   RewritePatternSet patterns(&getContext());
@@ -383,9 +561,15 @@ void DiscreteMaskAccessConversionPass::runOnOperation() {
 }
 
 void DiscreteMaskAccessConversionPass::getDependentDialects(
+<<<<<<< HEAD
     DialectRegistry &registry) const {
   registry
       .insert<arith::ArithDialect, triton::TritonDialect, hivm::HIVMDialect>();
+=======
+    DialectRegistry &registry) const
+{
+  registry.insert<arith::ArithDialect, triton::TritonDialect, hivm::HIVMDialect>();
+>>>>>>> release-3.2.2-0625-b79d137
 }
 
 std::unique_ptr<OperationPass<ModuleOp>>

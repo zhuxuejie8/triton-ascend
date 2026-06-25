@@ -140,4 +140,8 @@ docs-only:
 
 .PHONY: docs
 .NOPARALLEL: docs
+<<<<<<< HEAD
 docs: docs-requirements docs-only
+=======
+docs: docs-requirements docs-only
+>>>>>>> release-3.2.2-0625-b79d137

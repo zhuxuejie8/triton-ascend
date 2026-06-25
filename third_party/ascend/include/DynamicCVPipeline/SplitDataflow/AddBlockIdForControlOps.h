@@ -29,10 +29,17 @@
 
 namespace mlir {
 namespace triton {
+<<<<<<< HEAD
 // Define pass
 // Pass for adding block_id attributes to control flow operations
 class AddBlockIdForControlOpsPass
     : public PassWrapper<AddBlockIdForControlOpsPass, OperationPass<ModuleOp>> {
+=======
+
+// Define pass
+// Pass for adding block_id attributes to control flow operations
+class AddBlockIdForControlOpsPass : public PassWrapper<AddBlockIdForControlOpsPass, OperationPass<ModuleOp>> {
+>>>>>>> release-3.2.2-0625-b79d137
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AddBlockIdForControlOpsPass)
 
@@ -41,10 +48,27 @@ public:
   // Run the pass
   void runOnOperation() override;
 
+<<<<<<< HEAD
+=======
+  static constexpr ::llvm::StringRef getArgumentName() { return "add-block-id-for-control-ops"; }
+  ::llvm::StringRef getArgument() const override { return "add-block-id-for-control-ops"; }
+  ::llvm::StringRef getDescription() const override
+  {
+      return "Add block_id attribute to control flow operations";
+  }
+  ::llvm::StringRef getName() const override { return "AddBlockIdForControlOpsPass"; }
+
+>>>>>>> release-3.2.2-0625-b79d137
 private:
 };
 
 std::unique_ptr<OperationPass<ModuleOp>> createAddBlockIdForControlOpsPass();
+<<<<<<< HEAD
+=======
+
+void registerAddBlockIdForControlOpsPasses();
+
+>>>>>>> release-3.2.2-0625-b79d137
 } // namespace triton
 } // namespace mlir
 

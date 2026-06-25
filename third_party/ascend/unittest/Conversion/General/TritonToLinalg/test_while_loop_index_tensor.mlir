@@ -45,4 +45,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
     }
     tt.return
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> release-3.2.2-0625-b79d137

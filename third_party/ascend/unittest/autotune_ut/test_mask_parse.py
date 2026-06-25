@@ -19,17 +19,16 @@
 # THE SOFTWARE.
 
 import pytest
+import triton
 import triton.language as tl
 from test_common import check_axes_parse_res, mock_autotuner
 
 
-def test_triton_dot_case1(mock_autotuner):
-    """
-    The current operator is only used for aixs analysis test cases.
-    CV fused operators do not support autotuning for now.
-    """
+@pytest.mark.parametrize("kernel_type", ["vector", "auto"])
+def test_mask_parse_kernel_type_vector_auto_consistency(mock_autotuner, kernel_type):
     import triton.backends.ascend.runtime
 
+<<<<<<< HEAD
     @triton.autotune(configs=[], key=["M", "N", "K"])
     @triton.jit
     def triton_dot_case1(
@@ -79,19 +78,36 @@ def test_triton_dot_case1(mock_autotuner):
                 C_ptr = C + mdx * N + ndx
                 c_mask = (mdx < M) & (ndx < N)
                 tl.store(C_ptr, acc, mask=c_mask)
+=======
+    @triton.autotune(
+        configs=[],
+        key=["n_elements"],
+        hints={"kernel_type": kernel_type},
+    )
+    @triton.jit
+    def triton_mask_parse_kernel_type_vector_auto_consistency(
+        x_ptr, y_ptr, output_ptr, n_elements, BLOCK_SIZE: tl.constexpr, BLOCK_SUB: tl.constexpr
+    ):
+        block_start = tl.program_id(axis=0) * BLOCK_SIZE
+        offsets = block_start + tl.arange(0, BLOCK_SUB)
+        mask = offsets < n_elements
+        x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
+        y = tl.load(y_ptr + offsets, mask=mask, other=0.0)
+        tl.store(output_ptr + offsets, x + y, mask=mask)
+>>>>>>> release-3.2.2-0625-b79d137
 
     ref_res = {
-        "keys": {"x": "M", "y": "N", "z": "K"},
-        "split_params": {"x": "MBLOCK", "y": "NBLOCK"},
-        "tiling_params": {"x": "MBLOCK_SUB", "y": "NBLOCK_SUB", "z": "KBLOCK_SUB"},
-        "low_dim_axes": ["y", "z"],
+        "keys": {"x": "n_elements"},
+        "split_params": {"x": "BLOCK_SIZE"},
+        "tiling_params": {"x": "BLOCK_SUB"},
+        "low_dim_axes": ["x"],
         "reduction_axes": [],
     }
-    grid = lambda meta: (meta["MBLOCK"], meta["NBLOCK"])
-    act_res = triton_dot_case1[grid]()
-
+    grid = lambda meta: (meta["BLOCK_SIZE"],)
+    act_res = triton_mask_parse_kernel_type_vector_auto_consistency[grid]()
     check_axes_parse_res(act_res, ref_res)
 
+<<<<<<< HEAD
 
 @pytest.mark.skip
 def test_triton_dot_case2(mock_autotuner):
@@ -160,3 +176,5 @@ def test_triton_dot_case2(mock_autotuner):
     act_res = triton_dot_case2[grid]()
 
     check_axes_parse_res(act_res, ref_res)
+=======
+>>>>>>> release-3.2.2-0625-b79d137

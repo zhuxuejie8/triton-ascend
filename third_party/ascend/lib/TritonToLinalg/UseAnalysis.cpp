@@ -84,6 +84,7 @@ void triton::UseAnalysis::visitOperation(Operation *op,
           propagateUse(operands[2], UseType::MetaUse);
         }
       })
+<<<<<<< HEAD
       .Case<triton::PrintOp>([&](auto print) {
         for (auto operand : operands)
           propagateUse(operand, UseType::DataUse);
@@ -99,6 +100,12 @@ void triton::UseAnalysis::visitOperation(Operation *op,
           }
         }
       })
+=======
+      .Case<triton::PrintOp>([&](auto print){
+        for (auto operand : operands)
+          propagateUse(operand, UseType::DataUse);
+      })
+>>>>>>> release-3.2.2-0625-b79d137
       .Case<triton::AssertOp>(
           [&](auto assert) { propagateUse(operands[0], UseType::DataUse); })
       .Case<triton::StoreOp>([&](auto store) {
@@ -165,10 +172,29 @@ void triton::UseAnalysis::visitOperation(Operation *op,
           propagateUse(operand, UseType::DataUse);
         }
       })
+<<<<<<< HEAD
       .Case<hivm::FixpipeOp>(
           [&](auto fixpipeOp) { propagateUse(operands[0], UseType::DataUse); })
       .Case<hivm::CopyOp>(
           [&](auto copyOp) { propagateUse(operands[0], UseType::DataUse); })
+=======
+      .Case<tensor::ExtractOp>([&](auto extractOp) {
+        for (auto operand : operands) {
+          propagateUse(operand, UseType::DataUse);
+        }
+      })
+      .Case<hivm::FixpipeOp>([&](auto fixpipeOp) {
+        propagateUse(operands[0], UseType::DataUse);
+      })
+      .Case<hivm::CopyOp>([&](auto copyOp) {
+        propagateUse(operands[0], UseType::DataUse);
+      })
+      .Case<hivm::CustomOp, hivm::CustomMacroOp>([&](auto customOp) {
+        for (auto operand : operands) {
+          propagateUse(operand, UseType::MixUse);
+        }
+      })
+>>>>>>> release-3.2.2-0625-b79d137
       .Default([&](Operation *op) {
         // this condition account for tt.addptr
         for (auto operand : operands) {
@@ -370,8 +396,12 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
     bool shapedResult = true;
     for (auto result : op->getResults())
       shapedResult &= isa<ShapedType>(result.getType());
+<<<<<<< HEAD
     if (!shapedResult ||
         isa<LoopLikeOpInterface, scf::IfOp, arith::SelectOp>(op)) {
+=======
+    if (!shapedResult || isa<LoopLikeOpInterface, scf::IfOp, arith::SelectOp>(op)) {
+>>>>>>> release-3.2.2-0625-b79d137
       LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(context)); });
       return;
     }
@@ -571,6 +601,14 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
       op->removeAttr("MetaUse");
     }
   });
+<<<<<<< HEAD
+=======
+  funcOp.walk([&](hivm::CustomMacroOp op) {
+    if (isMetaUse(op)) {
+      op->removeAttr("MetaUse");
+    }
+  });
+>>>>>>> release-3.2.2-0625-b79d137
   LLVM_DEBUG({
     os << "[UseAnalysis] After post-process, funcOp is " << *funcOp << "\n";
   });

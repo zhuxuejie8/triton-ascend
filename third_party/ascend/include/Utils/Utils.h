@@ -147,6 +147,8 @@ SmallVector<OpFoldResult>
 getBoundarySizes(llvm::ArrayRef<int32_t> boundaryCheck, Value ptr,
                  const Location &loc, ConversionPatternRewriter &rewriter);
 
+bool requiresVolatileIndirectLoad(Value srcPtr, Operation *loadOp);
+
 SmallVector<int64_t> getBroadcastDims(RankedTensorType src,
                                       RankedTensorType dst);
 
@@ -327,7 +329,13 @@ RankedTensorType getExtractSlicedType(ArrayRef<OpFoldResult> shape,
                                       const llvm::SmallBitVector &droppedDims,
                                       Type elemType);
 
+<<<<<<< HEAD
 bool checkStructureAnnotated(Operation *op, RewriterBase &rewriter);
+=======
+bool checkStructureAnnotated(Operation* op, RewriterBase& rewriter);
+
+bool isDistributedTypeCustomOp(Operation* op);
+>>>>>>> release-3.2.2-0625-b79d137
 } // namespace mlir
 
 #endif // TRITONNPU_UTILS_UTILS_H

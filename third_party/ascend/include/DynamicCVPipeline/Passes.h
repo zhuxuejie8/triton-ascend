@@ -24,10 +24,29 @@
 #define TRITON_ADAPTER_DYNAMIC_CV_PIPELINE_PASSES_H
 
 #include "AddDynamicCVPipeline.h"
+<<<<<<< HEAD
+=======
+#include "ascend/include/DynamicCVPipeline/PreCheckAvailable.h"
+#include "ascend/include/DynamicCVPipeline/StandardizeOp.h"
+#include "third_party/ascend/include/DynamicCVPipeline/PlanComputeBlock/OpClassifier.h"
+#include "third_party/ascend/include/DynamicCVPipeline/PlanComputeBlockPass.h"
+#include "third_party/ascend/include/DynamicCVPipeline/ComputeBlockOptPass.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/AddBlockIdForControlOps.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/DataDependencyAnalysis.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/InterCoreTransferAndSync.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/MarkMainLoop.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/PreserveControlAttrsCanonicalize.h"
+#include "ascend/include/DynamicCVPipeline/SplitDataflow/SeparateCVScope.h"
+#include "ascend/include/DynamicCVPipeline/RemoveAttributes.h"
+>>>>>>> release-3.2.2-0625-b79d137
 
 namespace mlir {
 namespace triton {
 
+<<<<<<< HEAD
+=======
+using namespace mlir;
+>>>>>>> release-3.2.2-0625-b79d137
 #define GEN_PASS_REGISTRATION
 #include "ascend/include/DynamicCVPipeline/Passes.h.inc"
 

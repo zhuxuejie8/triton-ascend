@@ -1,3 +1,29 @@
+<<<<<<< HEAD
+=======
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+
+>>>>>>> release-3.2.2-0625-b79d137
 #ifndef TRITON_DYNAMIC_CV_PIPELINE_ADDMULTIBUFFERCONTROL_BUFFER_COUNT_MANAGER_H
 #define TRITON_DYNAMIC_CV_PIPELINE_ADDMULTIBUFFERCONTROL_BUFFER_COUNT_MANAGER_H
 
@@ -13,6 +39,7 @@ namespace triton {
 
 class BufferCountManager {
 public:
+<<<<<<< HEAD
   static BufferCountManager &getInstance();
 
   enum class DepType { IntraCore, InterCore, LoadStore };
@@ -33,6 +60,29 @@ private:
   int intraBufferCount_;
   int interCoreBufferCount_;
   int loadStoreBufferCount_;
+=======
+    static BufferCountManager& getInstance();
+
+    enum class DepType { IntraCore, InterCore, LoadStore };
+
+    void setBufferCount(DepType type, int count);
+
+    void buildBufferCountMap(
+        llvm::DenseMap<Value, std::vector<Value>> &depValueMap,
+        llvm::DenseMap<Value, int> &bufferCountMap,
+        DepType type);
+
+    int getBufferCountByType(DepType type) const;
+
+private:
+    BufferCountManager();
+    BufferCountManager(const BufferCountManager&) = delete;
+    BufferCountManager& operator=(const BufferCountManager&) = delete;
+
+    int intraBufferCount_;
+    int interCoreBufferCount_;
+    int loadStoreBufferCount_;
+>>>>>>> release-3.2.2-0625-b79d137
 };
 
 #define BUFFER_COUNT (BufferCountManager::getInstance())
@@ -40,4 +90,8 @@ private:
 } // namespace triton
 } // namespace mlir
 
+<<<<<<< HEAD
 #endif // TRITON_DYNAMIC_CV_PIPELINE_ADDMULTIBUFFERCONTROL_BUFFER_COUNT_MANAGER_H
+=======
+#endif // TRITON_DYNAMIC_CV_PIPELINE_ADDMULTIBUFFERCONTROL_BUFFER_COUNT_MANAGER_H
+>>>>>>> release-3.2.2-0625-b79d137

@@ -431,13 +431,21 @@ void BlockDataParser::parse(
         parseTensorPtr(advanceOp, data, loc, rewriter, known);
       } else if (auto intToPtrOp = dyn_cast<triton::IntToPtrOp>(op)) {
         data.setSource(remappedPtr);
+<<<<<<< HEAD
       } else if (auto customOp = dyn_cast<hivm::CustomOp>(op)) {
+=======
+      } else if (isDistributedTypeCustomOp(op)) {
+>>>>>>> release-3.2.2-0625-b79d137
         data.setSource(remappedPtr);
       } else {
         LLVM_DEBUG({ llvm::dbgs() << operand << "\n"; });
         llvm_unreachable("Unexpected operand defining operation, a scalar "
+<<<<<<< HEAD
                          "pointer can only be produced by AddPtrOp or direct "
                          "block ptr or hivm CustomOp");
+=======
+                         "pointer can only be produced by AddPtrOp or direct block ptr or hivm CustomOp");
+>>>>>>> release-3.2.2-0625-b79d137
       }
     } else {
       data.setSource(remappedPtr);
@@ -494,18 +502,31 @@ void BlockDataParser::parse(
     parseFill(fillOp, data, loc, rewriter, known);
   } else if (auto selectOp = operand.getDefiningOp<arith::SelectOp>()) {
     parseSelect(selectOp, data, loc, rewriter, known);
+<<<<<<< HEAD
   } else if (auto customOp = operand.getDefiningOp<hivm::CustomOp>()) {
     auto opResult = dyn_cast<OpResult>(operand);
     assert(opResult && "Expected operand to be an OpResult");
     unsigned resultIdx = opResult.getResultNumber();
     parseCustomOp(customOp, data, loc, rewriter, known, resultIdx);
+=======
+  } else if (isDistributedTypeCustomOp(operand.getDefiningOp())) {
+    auto opResult = dyn_cast<OpResult>(operand);
+    assert(opResult && "Expected operand to be an OpResult");
+    parseStructuredCustomOp(operand.getDefiningOp(), data, loc, rewriter, known,
+                            opResult.getResultNumber());
+>>>>>>> release-3.2.2-0625-b79d137
   } else if (auto genericOp = operand.getDefiningOp<linalg::GenericOp>()) {
     if (genericOp->hasAttr("tt.from_make_range")) {
-      parseLinalgGenericFromMakeRange(genericOp, data, loc, rewriter, known);
+        parseLinalgGenericFromMakeRange(genericOp, data, loc, rewriter, known);
     } else {
+<<<<<<< HEAD
       operand.dump();
       llvm_unreachable(
           "encountered AddPtrOp produced by unsupported operation");
+=======
+        operand.dump();
+        llvm_unreachable("encountered AddPtrOp produced by unsupported operation");
+>>>>>>> release-3.2.2-0625-b79d137
     }
   } else if (auto atomicRMWOp = operand.getDefiningOp<triton::AtomicRMWOp>()) {
     parseAtomicRmw(atomicRMWOp, data, loc, rewriter, known);
@@ -525,6 +546,7 @@ void BlockDataParser::parseAtomicRmw(
   if (auto shapedResTy = dyn_cast<ShapedType>(opResTy)) {
     resShape = shapedResTy.getShape().vec();
     if (resShape.size() == 1 && resShape[0] == 1) {
+<<<<<<< HEAD
       Value zeroIdx = rewriter.create<arith::ConstantIndexOp>(loc, 0);
       Value extracted =
           rewriter.create<tensor::ExtractOp>(loc, opRes, ValueRange{zeroIdx});
@@ -536,6 +558,17 @@ void BlockDataParser::parseAtomicRmw(
       data.getStridesRef().push_back(rewriter.getIndexAttr(0));
       data.getOffsetsRef().push_back(scalarIdx);
       return;
+=======
+        Value zeroIdx = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+        Value extracted = rewriter.create<tensor::ExtractOp>(loc, opRes, ValueRange{zeroIdx});
+        Value scalarIdx = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(), extracted);
+        data.setMemAccVal(MemAccVal::StrucMemAcc);
+        data.setScalar(scalarIdx);
+        data.getSizesRef().push_back(rewriter.getIndexAttr(1));
+        data.getStridesRef().push_back(rewriter.getIndexAttr(0));
+        data.getOffsetsRef().push_back(scalarIdx);
+        return;
+>>>>>>> release-3.2.2-0625-b79d137
     }
     // For now, we consider this is UnstrucMemAcc because we have no other info.
     // Visiting other ops may change the type due to more info.
@@ -995,6 +1028,7 @@ void parseIndirectLoad(OpTy op, BlockData &data, const Location &loc,
     // Visiting other ops may change the type due to more info.
     resShape = shapedResTy.getShape().vec();
     auto numOperands = 3;
+<<<<<<< HEAD
     if (resShape.size() == 1 && resShape[0] == 1 &&
         op->getNumOperands() == numOperands) {
       Value zeroIdx = rewriter.create<arith::ConstantIndexOp>(loc, 0);
@@ -1008,6 +1042,18 @@ void parseIndirectLoad(OpTy op, BlockData &data, const Location &loc,
       data.getStridesRef().push_back(rewriter.getIndexAttr(0));
       data.getOffsetsRef().push_back(scalarIdx);
       return;
+=======
+    if (resShape.size() == 1 && resShape[0] == 1 && op->getNumOperands() == numOperands) {
+        Value zeroIdx = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+        Value extracted = rewriter.create<tensor::ExtractOp>(loc, opRes, ValueRange{zeroIdx});
+        Value scalarIdx = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(), extracted);
+        data.setMemAccVal(MemAccVal::StrucMemAcc);
+        data.setScalar(scalarIdx);
+        data.getSizesRef().push_back(rewriter.getIndexAttr(1));
+        data.getStridesRef().push_back(rewriter.getIndexAttr(0));
+        data.getOffsetsRef().push_back(scalarIdx);
+        return;
+>>>>>>> release-3.2.2-0625-b79d137
     }
     data.setMemAccVal(MemAccVal::UnstrucMemAcc);
   } else {
@@ -1025,6 +1071,7 @@ void parseIndirectLoad(OpTy op, BlockData &data, const Location &loc,
   data.setSource(opRes);
 }
 
+<<<<<<< HEAD
 void BlockDataParser::parseCustomOp(
     hivm::CustomOp op, BlockData &data, const Location &loc,
     ConversionPatternRewriter &rewriter,
@@ -1044,6 +1091,137 @@ void BlockDataParser::parseFill(
     linalg::FillOp op, BlockData &data, const Location &loc,
     ConversionPatternRewriter &rewriter,
     const llvm::SmallDenseMap<Value, BlockData> &known) {
+=======
+namespace {
+template <typename CustomOpT>
+void parseStructuredCustomOpImpl(CustomOpT op, BlockData &data, const Location &loc,
+                                 ConversionPatternRewriter &rewriter,
+                                 const llvm::SmallDenseMap<Value, BlockData> &known,
+                                 unsigned resultIdx)
+{
+  auto srcValArrayAttr =
+      op->template getAttrOfType<DenseI32ArrayAttr>(ConverterUtils::customSrcPtrIndexAttrName);
+  assert(srcValArrayAttr && "structure hivm custom op should present src tensor<tt.ptr>");
+  auto srcValArray = srcValArrayAttr.asArrayRef();
+  assert(srcValArray[resultIdx] != -1 &&
+         "tensor<tt.ptr> result should map to src tensor<tt.ptr>");
+  BlockDataParser::parse(op->getOperand(srcValArray[resultIdx]), data, loc, rewriter, known);
+  data.setSource(rewriter.getRemappedValue(op->getResult(resultIdx)));
+}
+
+template <typename CustomOpT>
+CustomOpT createRewrittenStructuredCustomOp(ConversionPatternRewriter &rewriter, Location loc,
+                                            llvm::ArrayRef<Type> resultTypes, CustomOpT op,
+                                            typename CustomOpT::Adaptor &adaptor,
+                                            ValueRange newOutputs)
+{
+  if constexpr (std::is_same_v<CustomOpT, hivm::CustomMacroOp>) {
+    return rewriter.create<hivm::CustomMacroOp>(
+        loc, resultTypes, op.getName(), adaptor.getInputs(), newOutputs,
+        adaptor.getTempBuffers(), adaptor.getSyncRelatedArgs());
+  } else {
+    return rewriter.create<hivm::CustomOp>(loc, resultTypes, op.getName(), adaptor.getInputs(),
+                                           newOutputs, adaptor.getTempBuffers());
+  }
+}
+
+template <typename CustomOpT>
+void rewriteStructuredCustomOpImpl(CustomOpT op, typename CustomOpT::Adaptor &adaptor,
+                                   ConversionPatternRewriter &rewriter)
+{
+  if (isDistributedTypeCustomOp(op)) {
+    auto ip = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPoint(op);
+    auto loc = op.getLoc();
+    llvm::SmallVector<Value> newOutputs;
+    for (auto out : op.getOutputs()) {
+      auto tensorTy = llvm::cast<RankedTensorType>(out.getType());
+      if (llvm::isa<triton::PointerType>(tensorTy.getElementType())) {
+        continue;
+      }
+      newOutputs.emplace_back(rewriter.getRemappedValue(out));
+    }
+    llvm::SmallVector<Type> resultTypes;
+    for (auto ty : op->getResultTypes()) {
+      if (auto ptrTy = llvm::dyn_cast<triton::PointerType>(ty)) {
+        resultTypes.emplace_back(
+            MemRefType::get({ShapedType::kDynamic}, ptrTy.getPointeeType()));
+        continue;
+      }
+      if (auto tensorTy = llvm::dyn_cast<RankedTensorType>(ty)) {
+        if (auto ptrTy = llvm::dyn_cast<triton::PointerType>(tensorTy.getElementType())) {
+          resultTypes.emplace_back(
+              MemRefType::get(tensorTy.getShape(), ptrTy.getPointeeType()));
+          continue;
+        }
+      }
+      resultTypes.emplace_back(ty);
+    }
+    auto newOp = createRewrittenStructuredCustomOp(rewriter, loc, resultTypes, op, adaptor,
+                                                   newOutputs);
+    auto operandSegmentSizesAttr = newOp->getAttr("operandSegmentSizes");
+    newOp->setAttrs(op->getAttrs());
+    newOp->setAttr("operandSegmentSizes", operandSegmentSizesAttr);
+    rewriter.replaceOp(op, newOp.getResults());
+    rewriter.restoreInsertionPoint(ip);
+  } else {
+    SmallVector<Type> resultTypes(op->getResultTypes().begin(), op->getResultTypes().end());
+    auto newOp = createRewrittenStructuredCustomOp(rewriter, op.getLoc(), resultTypes, op,
+                                                   adaptor, adaptor.getOutputs());
+    auto operandSegmentSizesAttr = newOp->getAttr("operandSegmentSizes");
+    newOp->setAttrs(op->getAttrs());
+    newOp->setAttr("operandSegmentSizes", operandSegmentSizesAttr);
+    rewriter.replaceOp(op, newOp);
+  }
+}
+} // namespace
+
+void BlockDataParser::rewriteStructuredCustomOp(hivm::CustomOp op, hivm::CustomOp::Adaptor &adaptor,
+                                                ConversionPatternRewriter &rewriter)
+{
+  rewriteStructuredCustomOpImpl(op, adaptor, rewriter);
+}
+
+void BlockDataParser::rewriteStructuredCustomOp(hivm::CustomMacroOp op,
+                                                hivm::CustomMacroOp::Adaptor &adaptor,
+                                                ConversionPatternRewriter &rewriter)
+{
+  rewriteStructuredCustomOpImpl(op, adaptor, rewriter);
+}
+
+void BlockDataParser::parseStructuredCustomOp(Operation *op, BlockData &data, const Location &loc,
+                                              ConversionPatternRewriter &rewriter,
+                                              const llvm::SmallDenseMap<Value, BlockData> &known,
+                                              unsigned resultIdx)
+{
+  if (auto customOp = dyn_cast<hivm::CustomOp>(op)) {
+    parseStructuredCustomOpImpl(customOp, data, loc, rewriter, known, resultIdx);
+  } else if (auto macroOp = dyn_cast<hivm::CustomMacroOp>(op)) {
+    parseStructuredCustomOpImpl(macroOp, data, loc, rewriter, known, resultIdx);
+  } else {
+    llvm_unreachable("expected hivm custom op");
+  }
+}
+
+void BlockDataParser::rewriteStructuredCustomOp(Operation *op,
+                                                ConversionPatternRewriter &rewriter)
+{
+  if (auto customOp = dyn_cast<hivm::CustomOp>(op)) {
+    hivm::CustomOp::Adaptor adaptor(customOp);
+    rewriteStructuredCustomOpImpl(customOp, adaptor, rewriter);
+  } else if (auto macroOp = dyn_cast<hivm::CustomMacroOp>(op)) {
+    hivm::CustomMacroOp::Adaptor adaptor(macroOp);
+    rewriteStructuredCustomOpImpl(macroOp, adaptor, rewriter);
+  } else {
+    llvm_unreachable("expected hivm custom op");
+  }
+}
+
+void BlockDataParser::parseFill(linalg::FillOp op, BlockData &data,
+                                const Location &loc,
+                                ConversionPatternRewriter &rewriter,
+                                const llvm::SmallDenseMap<Value, BlockData> &known) {
+>>>>>>> release-3.2.2-0625-b79d137
   auto src = op.getInputs()[0];
   auto dst = op.getResult(0);
   auto dstShape = dyn_cast<ShapedType>(dst.getType()).getShape();
@@ -1220,11 +1398,31 @@ void BlockDataParser::rewriteAddPtr(
     inferedSize *= sizeConst.value();
   }
 
+<<<<<<< HEAD
   // Use dyn_cast_or_null to safely handle nullptr from getDefiningOp()
   // This is necessary for LLVM 21 compatibility where dyn_cast asserts on
   // nullptr
   if (auto intToPtrOp = dyn_cast_or_null<triton::IntToPtrOp>(
           data.getSourceRef().getDefiningOp())) {
+=======
+  auto &offsets = data.getOffsetsRef();
+  for (size_t i = 0; i < offsets.size(); ++i) {
+    if (auto constVal = getConstantIntValue(offsets[i])) {
+      if (constVal.value() < 0) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "[NegOffsetElim] Detected negative offset: "
+                       << constVal.value() << " at dim " << i << "\n";
+        });
+
+        Value negOffsetVal = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), constVal.value());
+        offsets[i] = negOffsetVal;
+      }
+    }
+  }
+
+  if (auto intToPtrOp =
+          dyn_cast<triton::IntToPtrOp>(data.getSourceRef().getDefiningOp())) {
+>>>>>>> release-3.2.2-0625-b79d137
     auto rtype = cast<triton::PointerType>(intToPtrOp.getResult().getType());
     auto memrefType =
         MemRefType::get({ShapedType::kDynamic}, rtype.getPointeeType());
@@ -1743,6 +1941,7 @@ BlockDataParser::rewriteTerminator(
     for (OpFoldResult stride : state.getStridesRef()) {
       if (isa<Attribute>(stride)) {
         auto constStride = cast<Attribute>(stride);
+<<<<<<< HEAD
         assert(isa<IntegerAttr>(constStride) &&
                "attribute strides should be IntegerAttr");
 
@@ -1751,6 +1950,14 @@ BlockDataParser::rewriteTerminator(
             (dimIdx < sizesRef.size() && isa<Attribute>(sizesRef[dimIdx]) &&
              cast<IntegerAttr>(cast<Attribute>(sizesRef[dimIdx])).getInt() ==
                  1);
+=======
+        assert(isa<IntegerAttr>(constStride) && "attribute strides should be IntegerAttr");
+
+        auto strideVal = dyn_cast<IntegerAttr>(constStride).getInt();
+        bool isSizeOne = (dimIdx < sizesRef.size() &&
+                          isa<Attribute>(sizesRef[dimIdx]) &&
+                          cast<IntegerAttr>(cast<Attribute>(sizesRef[dimIdx])).getInt() == 1);
+>>>>>>> release-3.2.2-0625-b79d137
         assert((strideVal == 1 || (strideVal == 0 && isSizeOne)) &&
                "attribute strides should be ones");
         auto constOp = rewriter.create<arith::ConstantOp>(
@@ -2310,12 +2517,19 @@ void BlockDataParser::rewriteLoopOp(
   // in the loop body, so we can take advantage of the states we built up
   for (auto *region : newOp.getLoopRegions()) {
     for (auto &bodyOp : region->getOps()) {
+<<<<<<< HEAD
       if (auto customOp = dyn_cast<hivm::CustomOp>(bodyOp)) {
         auto adaptor = hivm::CustomOp::Adaptor(customOp);
         rewriteCustomOp(customOp, adaptor, rewriter, known);
       } else if (auto addptrOp = dyn_cast<triton::AddPtrOp>(bodyOp)) {
         // FIXME: Constructed adaptor here does not hold the transformed op
         // info.
+=======
+      if (isDistributedTypeCustomOp(&bodyOp)) {
+        rewriteStructuredCustomOp(&bodyOp, rewriter);
+      } else if (auto addptrOp = dyn_cast<triton::AddPtrOp>(bodyOp)) {
+        // FIXME: Constructed adaptor here does not hold the transformed op info.
+>>>>>>> release-3.2.2-0625-b79d137
         auto adaptor = triton::AddPtrOp::Adaptor(addptrOp);
         rewriteAddPtr(addptrOp, adaptor, rewriter, known);
       } else if (auto advanceOp = dyn_cast<triton::AdvanceOp>(bodyOp)) {

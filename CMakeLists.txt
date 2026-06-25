@@ -15,7 +15,13 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 project(triton CXX C)
 include(CTest)
 
+<<<<<<< HEAD
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+=======
+if(NOT WIN32)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+endif()
+>>>>>>> release-3.2.2-0625-b79d137
 
 # Security compilation options settings
 include(${CMAKE_CURRENT_SOURCE_DIR}/safe_compile.cmake)
@@ -274,6 +280,7 @@ if(TRITON_BUILD_PYTHON_MODULE)
     MLIRMathToLLVM
     MLIRROCDLToLLVMIRTranslation
     MLIRGPUDialect
+    MLIRMeshDialect
     MLIRSCFToControlFlow
     MLIRIndexToLLVM
     MLIRGPUToROCDLTransforms
@@ -331,7 +338,21 @@ if(TRITON_BUILD_PYTHON_MODULE)
                   ${PYTHON_SRC_PATH}/llvm.cc)
 
   # Link triton with its dependencies
+<<<<<<< HEAD
   target_link_libraries(triton PRIVATE ${TRITON_LIBRARIES})
+=======
+  target_link_libraries(triton PUBLIC ${TRITON_LIBRARIES})
+  # Force-include Mesh dialect archive to materialize MeshDialect TypeID symbols
+  if(APPLE)
+    target_link_options(triton PRIVATE
+      "-Wl,-force_load,${LLVM_LIBRARY_DIR}/libMLIRMeshDialect.a")
+  else()
+    target_link_options(triton PRIVATE
+      "-Wl,--whole-archive"
+      "${LLVM_LIBRARY_DIR}/libMLIRMeshDialect.a"
+      "-Wl,--no-whole-archive")
+  endif()
+>>>>>>> release-3.2.2-0625-b79d137
   if(WIN32)
     target_link_libraries(triton PRIVATE ${CMAKE_DL_LIBS})
     set_target_properties(triton PROPERTIES SUFFIX ".pyd")
@@ -367,6 +388,7 @@ if(TRITON_BUILD_PYTHON_MODULE AND NOT WIN32)
   # Check if the platform is MacOS
   if(APPLE)
     set(PYTHON_LDFLAGS "-undefined dynamic_lookup")
+    target_link_libraries(entryC PRIVATE ${PYTHON_LDFLAGS})
   endif()
 
   target_link_options(triton PRIVATE ${PYTHON_LDFLAGS})

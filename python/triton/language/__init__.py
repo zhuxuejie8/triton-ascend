@@ -6,7 +6,10 @@ from . import extra
 from .standard import (
     argmax,
     argmin,
+<<<<<<< HEAD
     bitonic_merge,
+=======
+>>>>>>> release-3.2.2-0625-b79d137
     cdiv,
     cumprod,
     cumsum,
@@ -117,8 +120,12 @@ from .core import (
     void,
     where,
 )
+<<<<<<< HEAD
 from .math import (umulhi, exp, exp2, fma, log, log2, cos, rsqrt, sin, sqrt, sqrt_rn, abs, fdiv, div_rn, erf, floor,
                    ceil)
+=======
+from .math import (umulhi, exp, exp2, fma, log, log2, cos, rsqrt, sin, sqrt, sqrt_rn, abs, fdiv, div_rn, erf, floor, ceil)
+>>>>>>> release-3.2.2-0625-b79d137
 from .random import (
     pair_uniform_to_normal,
     philox,

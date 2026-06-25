@@ -29,10 +29,18 @@
 
 namespace mlir {
 namespace triton {
+<<<<<<< HEAD
 // Define pass
 // Pass for marking the main computation loop in the module
 class MarkMainLoopPass
     : public PassWrapper<MarkMainLoopPass, OperationPass<ModuleOp>> {
+=======
+
+// Define pass
+// Pass for marking the main computation loop in the module
+class MarkMainLoopPass : public PassWrapper<MarkMainLoopPass, OperationPass<ModuleOp>> 
+{
+>>>>>>> release-3.2.2-0625-b79d137
 public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MarkMainLoopPass)
 
@@ -41,10 +49,28 @@ public:
   // Run the pass
   void runOnOperation() override;
 
+<<<<<<< HEAD
+=======
+  // Return the pass argument name
+  static constexpr ::llvm::StringRef getArgumentName() { return "mark-main-loop"; }
+  ::llvm::StringRef getArgument() const override { return "mark-main-loop"; }
+  ::llvm::StringRef getDescription() const override
+  {
+      return "Mark main computation loops with main_loop attribute";
+  }
+  ::llvm::StringRef getName() const override { return "MarkMainLoopPass"; }
+
+>>>>>>> release-3.2.2-0625-b79d137
 private:
 };
 
 std::unique_ptr<OperationPass<ModuleOp>> createMarkMainLoopPass();
+<<<<<<< HEAD
+=======
+
+void registerMarkMainLoopPasses();
+
+>>>>>>> release-3.2.2-0625-b79d137
 } // namespace triton
 } // namespace mlir
 

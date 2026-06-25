@@ -49,6 +49,10 @@ template <typename T>
 struct has_getSrc<T, std::void_t<decltype(std::declval<T>().getSrc())>>
     : std::true_type {};
 
+template <typename T, typename = void> struct has_getDst : std::false_type {};
+template <typename T>
+struct has_getDst<T, std::void_t<decltype(std::declval<T>().getDst())>> : std::true_type {};
+
 template <typename T, typename = void> struct has_getBase : std::false_type {};
 template <typename T>
 struct has_getBase<T, std::void_t<decltype(std::declval<T>().getBase())>>
@@ -57,6 +61,8 @@ struct has_getBase<T, std::void_t<decltype(std::declval<T>().getBase())>>
 template <typename OpTy> static Value extractPointer(OpTy op) {
   if constexpr (has_getPtr<OpTy>::value)
     return op.getPtr();
+  else if constexpr (has_getDst<OpTy>::value)
+    return op.getDst();
   else if constexpr (has_getSrc<OpTy>::value)
     return op.getSrc();
   else if constexpr (has_getBase<OpTy>::value)
@@ -144,18 +150,31 @@ void MarkTensorKindPass::runOnOperation() {
       MarkTensorKindPattern<TensorKind::INPUT,
                             triton::ascend::IndexSelectSimdOp>,
       MarkTensorKindPattern<TensorKind::INPUT, triton::ascend::GatherOutToUbOp>,
+<<<<<<< HEAD
       MarkTensorKindPattern<TensorKind::INPUT,
                             triton::ascend::UnstructuredLoadOp>>(&getContext());
+=======
+      MarkTensorKindPattern<TensorKind::INPUT, triton::ascend::IndirectLoadOp>,
+      MarkTensorKindPattern<TensorKind::INPUT, triton::ascend::StrideLoadOp>
+  >(&getContext());
+>>>>>>> release-3.2.2-0625-b79d137
 
   // OUTPUT tensors
   patterns.add<
       MarkTensorKindPattern<TensorKind::OUTPUT, triton::StoreOp>,
       MarkTensorKindPattern<TensorKind::OUTPUT, triton::ascend::IndexPutOp>,
+<<<<<<< HEAD
       MarkTensorKindPattern<TensorKind::OUTPUT,
                             triton::ascend::ScatterUbToOutOp>,
       MarkTensorKindPattern<TensorKind::OUTPUT,
                             triton::ascend::UnstructuredStoreOp>>(
       &getContext());
+=======
+      MarkTensorKindPattern<TensorKind::OUTPUT, triton::ascend::ScatterUbToOutOp>,
+      MarkTensorKindPattern<TensorKind::OUTPUT, triton::ascend::StrideStoreOp>,
+      MarkTensorKindPattern<TensorKind::OUTPUT, triton::ascend::IndirectStoreOp>
+  >(&getContext());
+>>>>>>> release-3.2.2-0625-b79d137
 
   // INPUT_OUTPUT tensors
   patterns.add<
