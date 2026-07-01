@@ -1,12 +1,15 @@
 name: Wheels
 
+# TEMPORARILY DISABLED — all triggers commented out so this workflow never
+# starts and never occupies a runner. Uncomment to re-enable (restore just
+# `workflow_dispatch:` if you only want manual runs).
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/wheels.yml
-  schedule:
-    - cron: "0 8 * * *"
+  # pull_request:
+  #   paths:
+  #     - .github/workflows/wheels.yml
+  # schedule:
+  #   - cron: "0 8 * * *"
 
 concurrency:
   group: wheels-${{ github.ref }}
@@ -45,25 +48,9 @@ jobs:
           docker container prune -f
 
       - name: Checkout
-<<<<<<< HEAD
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ matrix.branch.ref }}
-=======
-        uses: actions/checkout@v5
-
-      # The LATEST_DATE here should be kept in sync with the one in Patch setup.py
-      - id: check-version
-        name: Check latest version
-        run: |
-          export PACKAGE_DATE=$(python3 -m pip install --user --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/Triton-Nightly/pypi/simple/ --dry-run triton-nightly== |& grep -oP '(?<=, )[0-9\.]+dev[0-9]+(?=\))' | grep -oP '(?<=dev)[0-9]+')
-          export LATEST_DATE=$(TZ=UTC0 git show --quiet --date='format-local:%Y%m%d%H%M%S' --format="%cd")
-          if cmp -s <(echo $PACKAGE_DATE) <(echo $LATEST_DATE); then
-            echo "new_commit=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "new_commit=true" >> "$GITHUB_OUTPUT"
-          fi
->>>>>>> 85400f80bf859a34ad7a746ffda877faf80312ab
 
       - uses: actions/setup-python@v6
         with:
@@ -125,16 +112,9 @@ jobs:
             export CIBW_MANYLINUX_AARCH64_IMAGE="quay.io/pypa/manylinux_2_28_${{ matrix.config.arch }}:latest"
           fi
 
-<<<<<<< HEAD
           export CIBW_BUILD="${{ matrix.python }}-manylinux_${{ matrix.config.arch }}"
 
           python3 -m cibuildwheel "${{ matrix.branch.path }}" --output-dir wheelhouse
-=======
-          export CIBW_BUILD="cp3{10,11,12,13,13t,14,14t}-manylinux_${{ matrix.config.arch }}"
-          export CIBW_SKIP="cp{35,36,37,38,39}-*"
-          export CIBW_ENABLE=cpython-freethreading
-          python3 -m cibuildwheel . --output-dir wheelhouse
->>>>>>> 85400f80bf859a34ad7a746ffda877faf80312ab
 
       - uses: actions/upload-artifact@v4
         with:
