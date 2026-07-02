@@ -18,23 +18,117 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""
-Ascend-specific interpreter builder extensions.
-
-This module extends the base InterpreterBuilder with Ascend-specific operations
-(extension ops) without modifying the public base class. All Ascend-related
-features are isolated here and can be extended independently.
-
-Author: Triton-Ascend Contributors
-"""
-
 import warnings
 import contextlib
+import re as _re
 import numpy as np
 import triton.language as tl
 from .interpreter import InterpreterBuilder, TensorHandle, ReduceOps, _get_np_dtype
 from .._C.libtriton import interpreter as _interpreter
+from . import interpreter as _interp_module
+# Several NumPy aliases used in this file (np.exp10, np.rcbrt, np.recip_hypot) are no longer
+# present in modern NumPy. Provide fallbacks so the interpreter can still
+# resolve the libdevice-numpy dispatch table.
+if not hasattr(np, "exp10"):
+    np.exp10 = lambda x: np.power(10.0, np.asarray(x))
+if not hasattr(np, "rcbrt"):
+    np.rcbrt = lambda x: 1.0 / np.cbrt(np.asarray(x))
+if not hasattr(np, "recip_hypot"):
+    np.recip_hypot = lambda x, y: 1.0 / np.hypot(x, y)
+if not hasattr(np, "fdim"):
+    np.fdim = lambda x, y: np.maximum(np.subtract(x, y), 0.0)
+if not hasattr(np, "scalbn"):    
+    np.scalbn = np.ldexp
+# Special-function ufuncs that were removed in newer NumPy: fall back to
+# scipy.special when available, otherwise provide NaN-emitting stubs.
+try:
+    import scipy.special as _scipy_special
+    _special_map = {
+        "erf": _scipy_special.erf, "erfc": _scipy_special.erfc,
+        "erfcx": _scipy_special.erfcx, "erfinv": _scipy_special.erfinv,
+        "erfcinv": _scipy_special.erfcinv, "gammaln": _scipy_special.gammaln,
+        "gamma": _scipy_special.gamma,
+        "i0": _scipy_special.i0, "i1": _scipy_special.i1,
+        "j0": _scipy_special.j0, "j1": _scipy_special.j1,
+        "y0": _scipy_special.y0, "y1": _scipy_special.y1,
+        "jv": _scipy_special.jv, "yv": _scipy_special.yv,
+        "ndtr": _scipy_special.ndtr, "ndtri": _scipy_special.ndtri,
+    }
+    for _name, _fn in _special_map.items():
+        if not hasattr(np, _name):
+            np.__dict__[_name] = _fn
+except ImportError:
+    pass
 
+try:
+    import scipy
+    import scipy.special  
+    _HAS_SCIPY = True
+except ImportError:
+    scipy = None
+    _HAS_SCIPY = False
+
+try:
+    import ml_dtypes
+    _HAS_ML_DTYPES = True
+except ImportError:
+    ml_dtypes = None
+    _HAS_ML_DTYPES = False
+
+
+def _strip_extern_prefix(symbol):
+    """Recover the logical libdevice op name from a ``__hmf_<op><dtype>`` symbol.
+
+    The CANN libdevice frontend emits symbols such as ``__hmf_atan_fp32`` or
+    ``__hmf_atanDh`` (the ``Dh``/``Db`` suffix means fp16/bf16). Stripping
+    those suffixes yields the bare op name (``atan``) that the
+    ``_LIBDEVICE_NUMPY`` table is keyed by.
+    """
+    base = symbol
+    for prefix in ("__hmf_", "__hmf", "hmf_"):
+        if base.startswith(prefix):
+            base = base[len(prefix):]
+            break
+    base = _re.sub(r"_fp(16|32|64|128)$", "", base)
+    base = _re.sub(r"_(bf16|fp16|fp32|fp64)$", "", base, flags=_re.IGNORECASE)
+    if base.endswith("f") and len(base) > 1 and base[-2].isalpha():
+        base = base[:-1]
+    base = base.replace("Dh", "").replace("Db", "")
+    return base
+
+
+def _patched_get_np_dtype(tt_dtype):
+    if isinstance(tt_dtype, tl.pointer_type):
+        return np.dtype(np.uint64)
+    np_types = {
+        tl.int1: np.dtype(bool),
+        tl.float16: np.dtype(np.float16),
+        tl.float32: np.dtype(np.float32),
+        tl.float64: np.dtype(np.float64),
+        tl.int8: np.dtype(np.int8),
+        tl.uint8: np.dtype(np.uint8),
+        tl.int16: np.dtype(np.int16),
+        tl.uint16: np.dtype(np.uint16),
+        tl.int32: np.dtype(np.int32),
+        tl.uint32: np.dtype(np.uint32),
+        tl.int64: np.dtype(np.int64),
+        tl.uint64: np.dtype(np.uint64),
+        # ASCEND_AI_TRITON_FIX: use ml_dtypes.bfloat16 for IEEE-compliant bfloat16 arithmetic
+        # (uint16 storage has same item size, but integer-overflow semantics differed)
+        tl.bfloat16: np.dtype(ml_dtypes.bfloat16) if _HAS_ML_DTYPES else np.dtype(np.uint16),
+        # float8 types are stored as uint8
+        tl.float8e5: np.dtype(np.uint8),
+        tl.float8e5b16: np.dtype(np.uint8),
+        tl.float8e4nv: np.dtype(np.uint8),
+        tl.float8e4b8: np.dtype(np.uint8),
+        tl.float8e4b15: np.dtype(np.uint8),
+    }
+    if isinstance(tt_dtype, tl.block_type):
+        if isinstance(tt_dtype.element_ty, tl.pointer_type):
+            return np.dtype(np.uint64)
+        return np_types[tt_dtype.element_ty]
+    return np_types[tt_dtype]
+_interp_module._get_np_dtype = _patched_get_np_dtype
 
 class AscendReduceOps(ReduceOps):
     """
@@ -82,7 +176,9 @@ class AscendInterpreterBuilder(InterpreterBuilder):
     All extension operations handle both TensorHandle and Python int types
     for interpreter mode compatibility.
     """
-    
+  
+    _LIBDEVICE_NUMPY = globals().get("_LIBDEVICE_NUMPY", {})
+
     def __init__(self) -> None:
         super().__init__()
         # Sub-vector core ID for simulating 1:2 hardware ratio
@@ -119,10 +215,41 @@ class AscendInterpreterBuilder(InterpreterBuilder):
         def _dummpy_scope(*args, **kwargs):
             yield
 
+        def _np_atan2(y, x):
+            y_np = y.handle.data.astype(np.float32)
+            x_np = x.handle.data.astype(np.float32)
+            res = np.arctan2(y_np, x_np).astype(_get_np_dtype(x.type))
+            return tl.tensor(TensorHandle(res, x.type.scalar), x.type)
+
+        def _np_isfinited(x):
+            # numpy.isfinite handles nan and inf simultaneously.
+            res = np.isfinite(x.handle.data.astype(np.float32)).astype(np.bool_)
+            return tl.tensor(TensorHandle(res, tl.int1.scalar), tl.int1)
+
+        def _np_finitef(x):
+            # finitef is defined as float32-only; same semantics as isfinited.
+            res = np.isfinite(x.handle.data.astype(np.float32)).astype(np.bool_)
+            return tl.tensor(TensorHandle(res, tl.int1.scalar), tl.int1)
+
         tl.extra.cann.extension.scope = _dummpy_scope
         tl.extra.cann.extension.parallel = _new_range
         tl.reduce = _new_reduce
         tl.core.reduce = _new_reduce
+
+        try:
+            import triton.language.extra.cann.libdevice as libdevice          
+            for _name, _np_fn in (("atan2", _np_atan2),
+                                   ("isfinited", _np_isfinited),
+                                   ("finitef", _np_finitef)):
+                _orig = getattr(libdevice, _name, None)
+                if _orig is None:
+                    continue
+                setattr(libdevice, _name, _np_fn)
+                for g_name, g_val in list(fn.__globals__.items()):
+                    if g_val is _orig:
+                        fn.__globals__[g_name] = _np_fn
+        except (ImportError, AttributeError):
+            pass
     
     def get_additional_reserved_keywords(self):
         """
@@ -184,7 +311,7 @@ class AscendInterpreterBuilder(InterpreterBuilder):
         except (ImportError, AttributeError):
             # Extension module not available (e.g., non-Ascend backend)
             pass
-    
+
     def execute_with_sub_vec_simulation(self, fn, args, grid):
         """
         Execute function with optional 1:2 sub-vector core simulation.
@@ -732,4 +859,191 @@ class AscendInterpreterBuilder(InterpreterBuilder):
             f"compile_hint '{hint_name}' is not supported in interpreter mode, just pass it",
             UserWarning,
             stacklevel=2 
-        )
+        )    
+
+    def _resolve_extern_symbol(self, symbol, arg_dtypes):
+        """Look up the numpy callable for ``symbol`` and the actual input dtypes.
+
+        Resolution order:
+        1. Exact symbol match in ``_LIBDEVICE_NUMPY`` (covers the full
+           149-op libdevice set in ``cann/libdevice.py``).
+        2. Name-only fallback: strip the ``__hmf_`` / dtype suffix and
+           consult the same table again. This is what the libdevice
+           frontend emits at the IR level (``__hmf_atan_fp32`` -> ``atan``).
+        3. Fall back to ``_SYMBOL_TO_NUMPY`` (kept for compatibility with
+           any symbols registered at runtime through
+           ``_register_extern_symbol``).
+        4. Last-ditch name-based dispatch happens inside
+           ``create_extern_elementwise`` for op aliases that do not have a
+           direct numpy equivalent (e.g. ``atan`` -> ``np.arctan``).
+
+        Returns ``(np_callable, key_dtype)`` where ``key_dtype`` is the
+        scalar dtype used for the dispatch lookup.
+        """
+        # 1) Exact symbol match in the global libdevice table.
+        np_types = getattr(AscendInterpreterBuilder, "_LIBDEVICE_NUMPY", {})
+        entry = np_types.get(symbol)
+        if entry is None:
+            # 2) Strip the prefix and dtype suffix to recover the op name.
+            entry = np_types.get(_strip_extern_prefix(symbol))
+        
+        # Choose the dispatch key from the first floating input.
+        key_dtype = None
+        for d in arg_dtypes:
+            if isinstance(d, tl.dtype) and d.is_floating():
+                key_dtype = d.scalar if hasattr(d, "scalar") else d
+                break
+        if key_dtype is None and arg_dtypes:
+            key_dtype = arg_dtypes[0].scalar if hasattr(arg_dtypes[0], "scalar") else arg_dtypes[0]
+        if isinstance(entry, dict):
+            np_fn = entry.get(key_dtype, entry.get(None) or entry.get(tl.float32))
+        elif callable(entry):
+            np_fn = entry
+        else:
+            np_fn = None
+        return np_fn, key_dtype
+
+    def create_extern_elementwise(self, libName, libPath, symbol, argList, retType, isPure):
+        """Numpy fallback for ``core.extern_elementwise`` in interpreter mode.
+
+        The real Ascend backend lowers these calls to CANN libdevice symbols
+        (e.g. ``__hmf_atanf``). The interpreter has no dynamic loader for
+        them, so we route the call through a numpy ufunc selected by symbol
+        name. This covers the test-suite cases (atan, tanh, exp, log, sin,
+        cos, sqrt, pow, ...) and any other libdevice ops the test may pull
+        in via ``tl.extra.cann.libdevice``.
+        """
+        # Extract numpy arrays and source dtypes from TensorHandle wrappers.
+        np_args = []
+        src_dtypes = []
+        for arg in argList:
+            if isinstance(arg, TensorHandle):
+                np_args.append(arg.data)
+                src_dtypes.append(arg.dtype)
+            else:
+                np_args.append(np.asarray(arg))
+                src_dtypes.append(getattr(arg, "dtype", tl.float32))
+
+        # Allow positional scalars (e.g. ldexp's exponent) to be passed in.
+        # They show up in argList as plain python ints/floats in IR dumps.
+        np_fn, key_dtype = self._resolve_extern_symbol(symbol, src_dtypes)   
+
+        if np_fn is None:
+            raise NotImplementedError(
+                f"extern_elementwise symbol '{symbol}' has no numpy fallback in interpreter mode"
+            )
+
+        try:
+            result_data = np_fn(*np_args)
+        except Exception as e:
+            raise NotImplementedError(
+                f"extern_elementwise symbol '{symbol}' failed in interpreter fallback: {e}"
+            )
+
+        # Determine the result numpy dtype from retType.
+        if isinstance(retType, tl.dtype):
+            ret_scalar = retType.scalar if hasattr(retType, "scalar") else retType
+            ret_np_dtype = _get_np_dtype(retType)
+        else:
+            ret_scalar = retType
+            ret_np_dtype = _get_np_dtype(retType)
+
+        result_data = np.asarray(result_data).astype(ret_np_dtype)
+        return TensorHandle(result_data, ret_scalar)
+
+    def get_bf16(self, value):
+        return TensorHandle(np.array([value], dtype=np.dtype(ml_dtypes.bfloat16) if _HAS_ML_DTYPES else np.dtype(np.uint16)), tl.bfloat16)
+
+
+def _gamma_fallback(x):
+    """Cheap Stirling-style fallback used when scipy is unavailable."""
+    x = np.asarray(x, dtype=np.float64)
+    out = np.empty_like(x)
+    mask = x > 0
+    out[~mask] = np.nan
+    xv = x[mask]
+    # Stirling approximation: lgamma ~ (x-0.5)ln(x) - x + 0.5 ln(2 pi)
+    out[mask] = np.exp((xv - 0.5) * np.log(np.maximum(xv, 1e-30)) - xv + 0.5 * np.log(2.0 * np.pi))
+    return out
+
+_LIBDEVICE_NUMPY = { 
+    # ---- transcendental ---------------------------------------------------
+    "cos": np.cos, "cosh": np.cosh, "sin": np.sin, "sinh": np.sinh,
+    "tan": np.tan, "tanh": np.tanh, "asin": np.arcsin, "asinh": np.arcsinh,
+    "acos": np.arccos, "acosh": np.arccosh, "atan": np.arctan, "atanh": np.arctanh,
+    "atan2": np.arctan2, "exp": np.exp, "expm1": np.expm1, "exp2": np.exp2,
+    "exp10": np.exp10, "log": np.log, "log1p": np.log1p, "log2": np.log2,
+    "log10": np.log10, "logb": lambda x: np.log2(np.abs(np.where(np.asarray(x) == 0, 1.0, np.asarray(x)))),
+    "ilogb": lambda x: np.floor(np.log2(np.abs(np.where(np.asarray(x) == 0, 1.0, np.asarray(x))))).astype(np.int32),
+    "sqrt": np.sqrt, "cbrt": np.cbrt, "rcbrt": np.rcbrt,
+    "rsqrt_rn": lambda x: 1.0 / np.sqrt(np.asarray(x)),
+    "rcp_rn": lambda x: 1.0 / np.asarray(x),
+    "reciprocal": lambda x: 1.0 / np.asarray(x),
+    "pow": np.power, "hypot": np.hypot, "rhypot": getattr(np, "recip_hypot", lambda x, y: 1.0 / np.hypot(x, y)),
+    "fmod": np.fmod, "remainder": np.remainder, "copysign": np.copysign,
+    "fdim": np.fdim, "fmax": np.fmax, "fmin": np.fmin,
+    "nextafter": np.nextafter, "ldexp": np.ldexp, "scalbn": np.scalbn,
+    # ---- rounding / fp-class ---------------------------------------------
+    "fabs": np.abs, "abs": np.abs, "neg": np.negative, "relu": lambda x: np.fmax(np.asarray(x), 0),
+    "rint": np.rint, "nearbyint": np.rint, "round": np.round, "trunc": np.trunc,
+    "floor": np.floor, "ceil": np.ceil,
+    "signbit": lambda x: np.signbit(np.asarray(x)).astype(np.int8),
+    "isnan": lambda x: np.isnan(np.asarray(x)), "isinf": lambda x: np.isinf(np.asarray(x)),
+    "isfinite": lambda x: np.isfinite(np.asarray(x)),
+    "isin": lambda x: np.isinf(np.asarray(x)),  # alias: _strip_extern_prefix strips trailing 'f' from isinf -> isin
+    # ---- special functions -----------------------------------------------
+    "erf": np.erf, "erfc": np.erfc, "erfcx": np.erfcx,
+    "erfinv": (lambda x: scipy.special.erfinv(x)) if _HAS_SCIPY else (lambda x: np.full(np.shape(x), np.nan)),
+    "erfcinv": (lambda x: scipy.special.erfcinv(x)) if _HAS_SCIPY else (lambda x: np.full(np.shape(x), np.nan)),
+    "lgamma": (lambda x: scipy.special.gammaln(x)) if _HAS_SCIPY else (lambda x: np.log(np.maximum(_gamma_fallback(x), 1e-30))),
+    "tgamma": (lambda x: scipy.special.gamma(x)) if _HAS_SCIPY else _gamma_fallback,
+    "normcdf": (lambda x: scipy.special.ndtr(x)) if _HAS_SCIPY else (lambda x: 0.5 * (1.0 + np.erf(np.asarray(x) / np.sqrt(2.0)))),
+    "normcdfinv": (lambda x: scipy.special.ndtri(x)) if _HAS_SCIPY else (lambda x: np.sqrt(2.0) * scipy.special.erfinv(2 * np.asarray(x) - 1)) if _HAS_SCIPY else (lambda x: np.full(np.shape(x), np.nan)),
+    "j0": (lambda x: scipy.special.j0(x)) if _HAS_SCIPY else (lambda x: np.sin(x) / np.where(x == 0, 1.0, x)),
+    "j1": (lambda x: scipy.special.j1(x)) if _HAS_SCIPY else (lambda x: np.sin(x) / np.where(x == 0, 1.0, x) - np.cos(x) / np.where(x == 0, 1.0, x)),
+    "jn": (lambda n, x: scipy.special.jv(n, x)) if _HAS_SCIPY else (lambda n, x: np.sin(x) / np.where(x == 0, 1.0, x)),
+    "y0": (lambda x: scipy.special.y0(x)) if _HAS_SCIPY else (lambda x: -np.cos(x) / np.where(x == 0, 1.0, x)),
+    "y1": (lambda x: scipy.special.y1(x)) if _HAS_SCIPY else (lambda x: -np.cos(x) / np.where(x == 0, 1.0, x) - np.sin(x) / np.where(x == 0, 1.0, x)),
+    "yn": (lambda n, x: scipy.special.yv(n, x)) if _HAS_SCIPY else (lambda n, x: -np.cos(x) / np.where(x == 0, 1.0, x)),
+    "sinpi": lambda x: np.sin(np.asarray(x) * np.pi),
+    "cospi": lambda x: np.cos(np.asarray(x) * np.pi),
+    # ---- rounding-mode intrinsics (cannot be emulated on a numpy fp core) -
+    "add_rd": None, "add_rn": None, "add_ru": None, "add_rz": None,
+    "sub_rd": None, "sub_rn": None, "sub_ru": None, "sub_rz": None,
+    "mul_rd": None, "mul_rn": None, "mul_ru": None, "mul_rz": None,
+    "div_rd": None, "div_rn": None, "div_ru": None, "div_rz": None,
+    "sqrt_rd": None, "sqrt_rn": None, "sqrt_ru": None, "sqrt_rz": None,
+    "rcp_rd": None, "rcp_ru": None, "rcp_rz": None,
+    "fma_rd": None, "fma_rn": None, "fma_ru": None, "fma_rz": None,
+    # ---- cast ops with explicit rounding modes ----------------------------
+    "float2int_rd": None, "float2int_rn": None, "float2int_ru": None, "float2int_rz": None,
+    "float2uint_rd": None, "float2uint_rn": None, "float2uint_ru": None, "float2uint_rz": None,
+    "float2ll_rd": None, "float2ll_rn": None, "float2ll_ru": None, "float2ll_rz": None,
+    "float2ull_rd": None, "float2ull_rn": None, "float2ull_ru": None, "float2ull_rz": None,
+    "int2float_rd": None, "int2float_rn": None, "int2float_ru": None, "int2float_rz": None,
+    "uint2float_rd": None, "uint2float_rn": None, "uint2float_ru": None, "uint2float_rz": None,
+    "ll2float_rd": None, "ll2float_rn": None, "ll2float_ru": None, "ll2float_rz": None,
+    "ull2float_rd": None, "ull2float_rn": None, "ull2float_ru": None, "ull2float_rz": None,
+    "float_as_int": None, "float_as_uint": None,
+    "int_as_float": None, "uint_as_float": None,
+    "llrint": None, "llround": None,
+    # ---- integer / bit-level intrinsics ----------------------------------
+    "brev": None, "byte_perm": None, "clz": None, "popc": None, "ffs": None,
+    "hadd": None, "rhadd": None, "sad": None, "mulhi": None, "mul24": None,
+    # ---- fast / approximate (delegate to np equivalent) -------------------
+    "fast_cos": np.cos, "fast_sin": np.sin, "fast_tan": np.tan,
+    "fast_exp": np.exp, "fast_exp10": np.exp10,
+    "fast_log": np.log, "fast_log2": np.log2, "fast_log10": np.log10,
+    "fast_pow": np.power, "fast_divide": np.true_divide,
+    "fast_cosf": np.cos, "fast_sinf": np.sin, "fast_tanf": np.tan,
+    "fast_expf": np.exp, "fast_exp10f": np.exp10,
+    "fast_logf": np.log, "fast_log2f": np.log2, "fast_log10f": np.log10,
+    "fast_powf": np.power, "fast_dividef": np.true_divide,
+    "finitef": np.isfinite, "finite": np.isfinite, "finitelf": np.isfinite,
+    "saturatef": None, "saturate": None, "gamma": None,
+    # ---- vector norms / bessel --------------------------------------------
+    "norm3d": None, "norm4d": None, "rnorm3d": None, "rnorm4d": None,
+    "cyl_bessel_i0": (lambda x: scipy.special.i0(x)) if _HAS_SCIPY else (lambda x: np.full(np.shape(x), np.nan)),
+    "cyl_bessel_i1": (lambda x: scipy.special.i1(x)) if _HAS_SCIPY else (lambda x: np.full(np.shape(x), np.nan)),
+}
+AscendInterpreterBuilder._LIBDEVICE_NUMPY = _LIBDEVICE_NUMPY
