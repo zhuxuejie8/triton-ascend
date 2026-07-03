@@ -224,10 +224,10 @@ void init_triton_ascend_ir(py::module &&m) {
         std::vector<Value> &dstStride) -> void {
           // dim need to be i32 type
           auto dimI32Ty = self.getBuilder().getI32Type();
-          auto dim_val = self.create<arith::ConstantIntOp>(dim, dimI32Ty);
+          auto dim_val = self.create<arith::ConstantIntOp>(dimI32Ty, dim);
           // indexBoundary need to be i64 type
           auto BoundI64Ty = self.getBuilder().getI64Type();
-          auto bound_val = self.create<arith::ConstantIntOp>(indexBoundary, BoundI64Ty);
+          auto bound_val = self.create<arith::ConstantIntOp>(BoundI64Ty, indexBoundary);
 
           self.create<triton::ascend::IndexPutOp>(
             ptr,
@@ -252,10 +252,10 @@ void init_triton_ascend_ir(py::module &&m) {
 
           // indexBoundary need to be i64 type
           auto BoundI64Ty = self.getBuilder().getI64Type();
-          auto bound_val = self.create<arith::ConstantIntOp>(indexBoundary, BoundI64Ty);
+          auto bound_val = self.create<arith::ConstantIntOp>(BoundI64Ty, indexBoundary);
           // dim need to be i32 type
           auto dimI32Ty = self.getBuilder().getI32Type();
-          auto dim_val = self.create<arith::ConstantIntOp>(dim, dimI32Ty);
+          auto dim_val = self.create<arith::ConstantIntOp>(dimI32Ty, dim);
           return self.create<triton::ascend::GatherOutToUbOp>(
             resType,
             src,
@@ -276,10 +276,10 @@ void init_triton_ascend_ir(py::module &&m) {
 
           // indexBoundary need to be i64 type
           auto BoundI64Ty = self.getBuilder().getI64Type();
-          auto bound_val = self.create<arith::ConstantIntOp>(indexBoundary, BoundI64Ty);
+          auto bound_val = self.create<arith::ConstantIntOp>(BoundI64Ty, indexBoundary);
           // dim need to be i32 type
           auto dimI32Ty = self.getBuilder().getI32Type();
-          auto dim_val = self.create<arith::ConstantIntOp>(dim, dimI32Ty);
+          auto dim_val = self.create<arith::ConstantIntOp>(dimI32Ty, dim);
 
           self.create<triton::ascend::ScatterUbToOutOp>(
             ptr,
