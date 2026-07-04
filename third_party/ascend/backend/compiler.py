@@ -56,17 +56,13 @@ from triton.backends.ascend.utils import (
     _warn_auto_blockify_disabled,
     downgrade_llir,
     force_disable_ffts,
-    triton_enable_libdevice_simt,
     get_cann_version_file_hash,
 )
 from triton.backends.ascend.driver import (NPUUtils)
 from triton.backends.compiler import (
-    AttrsDescriptor,
     BaseBackend,
     GPUTarget,
-    register_descriptor,
 )
-from triton.runtime import driver
 from triton.runtime.cache import _base32, get_dump_manager
 from triton.tools.get_ascend_devices import is_compile_on_910_95
 
@@ -147,7 +143,7 @@ def make_ttir(mod, metadata, opt):
     passes.common.add_licm(pm)
     passes.common.add_symbol_dce(pm)
     passes.ttir.add_loop_unroll(pm)
-    pm.run(mod)
+    pm.run(mod, 'make_ttir')
     if opt.debug:
         dump_manager = get_dump_manager(metadata["hash"])
         print(f"Dumping intermediate results to {dump_manager.cache_dir}")
@@ -234,7 +230,7 @@ def ttir_to_linalg(mod, metadata, opt, *, named_ops=False):
         if _load_val is not None:
             ascend.passes.ttir.set_buffer_count("LOAD", _load_val)
 
-        pm.run(mod)
+        pm.run(mod, 'ttir_to_linalg')
         _adjust_metadata_by_module_result(mod, metadata, opt, enable_mixed_cv=enable_mixed_cv,
                                           disable_auto_inject_block_sync=disable_auto_inject_block_sync,
                                           set_workspace_multibuffer=set_workspace_multibuffer)
@@ -963,6 +959,7 @@ class NPUOptions:
     ir_override: Optional[str] = None  # filename of a user-defined IR (*.{ttir|ttadapter|mlirbc|bcmlir|npubin})
 
     auto_blockify_size: int = 1
+    add_auto_scheduling: bool = False
     enable_auto_blockify: bool = None
     compile_on_910_95: bool = is_compile_on_910_95
     optimize_dynamic_offset: bool = False
@@ -974,6 +971,7 @@ class NPUOptions:
     enable_fp_fusion: bool = True
     launch_cooperative_grid: bool = False
     backend_name: str = 'cann'
+    instrumentation_mode: str = ""
     allow_fp8e4nv: bool = False
     auto_tile_and_bind_subblock: bool = True
     vf_merge_level: int = 0
@@ -1081,15 +1079,6 @@ class NPUOptions:
         return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
-@register_descriptor
-class AscendAttrsDescriptor(AttrsDescriptor):
-
-    # For now we collect shapes of tensor at runtime.
-    # We comment out the following func but keep it for future reference.
-    def _add_backend_properties(self, params=None, values=None):
-        pass
-
-
 def ttir_to_npubin(mod, metadata, opt):
     # Get Triton-MLIR as string
     ttir_code = str(mod)
@@ -1121,11 +1110,6 @@ def ttir_to_npubin(mod, metadata, opt):
                 _compile_option_list += ["--enable-simt-reorder-instruction=true"]
             if opt.disable_fma:
                 _compile_option_list += [f"--disable-fma"]
-            enable_libdevice_simt = triton_enable_libdevice_simt()
-            if (enable_libdevice_simt):
-                bisheng_options = metadata["bisheng_options"]
-                if bisheng_options is not None:
-                    _compile_option_list += [f"--append-bisheng-options={bisheng_options}"]
 
             # Enable SIMT auto-blockify if user opted in, or if the env var is
             # set and the user didn't explicitly opt out (matches the SIMD path
